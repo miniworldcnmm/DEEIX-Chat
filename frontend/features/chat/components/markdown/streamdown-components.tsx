@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Check, Copy, CornerUpLeft, Download, Maximize2, WandSparkles } from "lucide-react";
+import { Check, Copy, CornerUpLeft, Download, Eye, Maximize2, WandSparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { ChevronDown } from "@/components/animate-ui/icons/chevron-down";
 import { ChevronUp } from "@/components/animate-ui/icons/chevron-up";
@@ -16,6 +17,10 @@ import {
   resolveMarkdownImageSource,
   resolveProtectedMarkdownImageSource,
 } from "@/features/chat/model/markdown-image-source";
+import {
+  resolveArtifactPreviewKind,
+  type ArtifactPreviewKind,
+} from "@/features/chat/model/chat-artifacts";
 import { cn } from "@/lib/utils";
 
 const CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 16;
@@ -55,6 +60,14 @@ export type MarkdownImageActions = {
   onEditImage?: (src: string) => void;
 };
 
+export type MarkdownArtifactActions = {
+  onOpenCodeArtifact: (artifact: {
+    code: string;
+    language: string;
+    kind: ArtifactPreviewKind;
+  }) => void;
+};
+
 type MarkdownParagraphProps = React.HTMLAttributes<HTMLParagraphElement> & {
   children?: React.ReactNode;
 };
@@ -66,6 +79,7 @@ type MarkdownHeadingProps = React.HTMLAttributes<HTMLHeadingElement> & {
 const StreamdownLinkContext = React.createContext(false);
 const FootnoteBackrefGroupContext = React.createContext(false);
 export const MarkdownImageActionsContext = React.createContext<MarkdownImageActions | null>(null);
+export const MarkdownArtifactActionsContext = React.createContext<MarkdownArtifactActions | null>(null);
 
 function resolveLinkKind(href: string): ResolvedLinkKind {
   if (href.startsWith("#")) {
@@ -239,6 +253,87 @@ function getLineCount(value: string): number {
   return value.replace(/\n$/, "").split("\n").length;
 }
 
+function CodeBlockActionButton({
+  label,
+  children,
+  onClick,
+}: {
+  label: string;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          className="inline-flex size-6 items-center justify-center rounded-md p-1 text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+          onClick={onClick}
+        >
+          {children}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function CodeBlockActions({
+  code,
+  language,
+  previewable,
+}: {
+  code: string;
+  language: string;
+  previewable: boolean;
+}) {
+  const commonActions = useTranslations("common.actions");
+  const commonErrors = useTranslations("common.errors");
+  const artifactCopy = useTranslations("chat.markdown.artifact");
+  const artifactActions = React.useContext(MarkdownArtifactActionsContext);
+  const [copied, setCopied] = React.useState(false);
+  const artifactKind = React.useMemo(() => resolveArtifactPreviewKind(language, code), [code, language]);
+
+  React.useEffect(() => {
+    setCopied(false);
+  }, [code]);
+
+  const handleCopy = React.useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      toast.success(commonActions("copied"));
+    } catch {
+      toast.error(commonErrors("copyFailed"));
+    }
+  }, [code, commonActions, commonErrors]);
+
+  const handleOpenArtifact = React.useCallback(() => {
+    if (!artifactActions || !artifactKind) {
+      return;
+    }
+    artifactActions.onOpenCodeArtifact({ code, language, kind: artifactKind });
+  }, [artifactActions, artifactKind, code, language]);
+
+  const canOpenArtifact = Boolean(previewable && artifactActions && artifactKind && code.trim());
+
+  return (
+    <div className="pointer-events-none absolute right-0 top-0 z-20 flex h-8 items-center justify-end">
+      <div className="pointer-events-auto flex shrink-0 items-center gap-2 rounded-md bg-background/80 px-1.5 py-1 backdrop-blur">
+        {canOpenArtifact ? (
+          <CodeBlockActionButton label={artifactCopy("openPreview")} onClick={handleOpenArtifact}>
+            <Eye className="size-4" strokeWidth={1.8} />
+          </CodeBlockActionButton>
+        ) : null}
+        <CodeBlockActionButton label={commonActions("copy")} onClick={() => void handleCopy()}>
+          {copied ? <Check className="size-3.5" strokeWidth={1.8} /> : <Copy className="size-3.5" strokeWidth={1.8} />}
+        </CodeBlockActionButton>
+      </div>
+    </div>
+  );
+}
+
 function ExternalLinkSafetyDialog({ isOpen, onClose, onConfirm, url }: ExternalLinkSafetyDialogProps) {
   const t = useTranslations("chat.markdown.externalLink");
   const common = useTranslations("common.actions");
@@ -333,6 +428,7 @@ export function CollapsibleCodePre({ children }: CollapsiblePreProps) {
   const codeContent = childElement ? getCodeTextFromChild(childElement) : "";
   const lineCount = getLineCount(codeContent);
   const language = childElement ? getCodeLanguage(childElement.props.className) : "";
+  const artifactPreviewable = Boolean(resolveArtifactPreviewKind(language, codeContent));
   const isCollapsible =
     childElement != null && language !== "mermaid" && lineCount > CODE_BLOCK_COLLAPSE_LINE_THRESHOLD;
   const [expanded, setExpanded] = React.useState(false);
@@ -342,12 +438,20 @@ export function CollapsibleCodePre({ children }: CollapsiblePreProps) {
     return children;
   }
 
+  const codeBlock = React.cloneElement(childElement, { "data-block": "true" });
+
   if (!isCollapsible) {
-    return React.cloneElement(childElement, { "data-block": "true" });
+    return (
+      <div className="relative w-full">
+        <CodeBlockActions code={codeContent} language={language} previewable={artifactPreviewable} />
+        {codeBlock}
+      </div>
+    );
   }
 
   return (
     <div className="relative w-full">
+      <CodeBlockActions code={codeContent} language={language} previewable={artifactPreviewable} />
       <div
         className={cn(
           "w-full",
@@ -355,7 +459,7 @@ export function CollapsibleCodePre({ children }: CollapsiblePreProps) {
           !expanded && "[&_[data-streamdown='code-block-body']]:max-h-[22rem] [&_[data-streamdown='code-block-body']]:overflow-hidden",
         )}
       >
-        {React.cloneElement(childElement, { "data-block": "true" })}
+        {codeBlock}
       </div>
       {!expanded ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-9 h-20 bg-gradient-to-b from-transparent via-background/70 to-background" />

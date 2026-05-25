@@ -102,10 +102,41 @@
       "collapse": "Collapse",
       "expand": "Expand {count} lines"
     },
+    "artifact": {
+      "openPreview": "Preview",
+      "title": "Artifact Preview",
+      "description": "Render this code block inside an isolated sandbox.",
+      "preview": "Preview",
+      "source": "Source",
+      "copySource": "Copy source",
+      "sourceCopied": "Source copied",
+      "copyFailed": "Could not copy source",
+      "downloadHtml": "Download HTML",
+      "empty": "This code block is empty and cannot be previewed yet.",
+      "security": "The preview runs in an isolated sandbox with external network, forms, popups, parent page access, and storage access restricted."
+    },
     "thinking": {
       "active": "Thinking",
       "done": "Thinking complete"
     }
+  },
+  "artifacts": {
+    "title": "Artifact",
+    "previewTitle": "Artifact preview",
+    "live": "Live",
+    "complete": "Complete",
+    "draft": "Draft",
+    "selectArtifact": "Select artifact",
+    "preview": "Preview",
+    "source": "Source",
+    "copySource": "Copy source",
+    "sourceCopied": "Source copied",
+    "copyFailed": "Could not copy source",
+    "downloadHtml": "Download HTML",
+    "close": "Close",
+    "resize": "Resize Artifact",
+    "empty": "This artifact is empty and cannot be previewed yet.",
+    "security": "The preview runs in an isolated sandbox with external network, forms, popups, parent page access, and storage access restricted."
   },
   "messages": {
     "debugRequest": "Request",

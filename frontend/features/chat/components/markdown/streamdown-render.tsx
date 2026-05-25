@@ -22,7 +22,9 @@ import {
   MarkdownImage,
   MarkdownLink,
   MarkdownParagraph,
+  MarkdownArtifactActionsContext,
   ThinkingHeading,
+  type MarkdownArtifactActions,
   type MarkdownImageActions,
 } from "./streamdown-components";
 import {
@@ -40,6 +42,7 @@ type StreamdownRenderProps = {
   streaming?: boolean;
   variant?: "default" | "thinking";
   imageActions?: MarkdownImageActions;
+  artifactActions?: MarkdownArtifactActions;
 };
 
 type StreamdownFeatureFlags = {
@@ -64,7 +67,7 @@ const STREAMDOWN_PLUGIN_PROMISE_CACHE = new Map<string, Promise<PluginConfig>>()
 
 const STREAMDOWN_CONTROLS = {
   code: {
-    copy: true,
+    copy: false,
     download: false,
   },
   mermaid: {
@@ -119,7 +122,7 @@ const BASE_MARKDOWN_CLASSNAME = cn(
   "[&_table_*]:outline-none [&_table_*]:ring-0",
   "[&_code:not(pre_code)]:rounded-md [&_code:not(pre_code)]:bg-foreground/[0.05] [&_code:not(pre_code)]:px-1.5 [&_code:not(pre_code)]:py-0.5 [&_code:not(pre_code)]:font-mono [&_code:not(pre_code)]:text-[0.92em] [&_code:not(pre_code)]:text-foreground [&_code:not(pre_code)]:whitespace-pre-wrap [&_code:not(pre_code)]:break-words [&_code:not(pre_code)]:[overflow-wrap:anywhere]",
   "[&_[data-streamdown='code-block']]:my-4 [&_[data-streamdown='code-block']]:!w-full [&_[data-streamdown='code-block']]:min-w-0 [&_[data-streamdown='code-block']]:gap-0 [&_[data-streamdown='code-block']]:border-0 [&_[data-streamdown='code-block']]:rounded-none [&_[data-streamdown='code-block']]:bg-transparent [&_[data-streamdown='code-block']]:p-0 [&_[data-streamdown='code-block']]:shadow-none [&_[data-streamdown='code-block']]:outline-none [&_[data-streamdown='code-block']]:ring-0",
-  "[&_[data-streamdown='code-block']>div:first-child]:min-h-0 [&_[data-streamdown='code-block']>div:first-child]:border-0 [&_[data-streamdown='code-block']>div:first-child]:bg-transparent [&_[data-streamdown='code-block']>div:first-child]:mt-2 [&_[data-streamdown='code-block']>div:first-child]:pb-6 [&_[data-streamdown='code-block']>div:first-child]:text-[11px] [&_[data-streamdown='code-block']>div:first-child]:font-medium [&_[data-streamdown='code-block']>div:first-child]:tracking-[0.06em] [&_[data-streamdown='code-block']>div:first-child]:text-muted-foreground/85 [&_[data-streamdown='code-block']>div:first-child]:shadow-none",
+  "[&_[data-streamdown='code-block']>div:first-child]:min-h-0 [&_[data-streamdown='code-block']>div:first-child]:justify-between [&_[data-streamdown='code-block']>div:first-child]:gap-2 [&_[data-streamdown='code-block']>div:first-child]:border-0 [&_[data-streamdown='code-block']>div:first-child]:bg-transparent [&_[data-streamdown='code-block']>div:first-child]:mt-2 [&_[data-streamdown='code-block']>div:first-child]:pb-6 [&_[data-streamdown='code-block']>div:first-child]:text-[11px] [&_[data-streamdown='code-block']>div:first-child]:font-medium [&_[data-streamdown='code-block']>div:first-child]:tracking-[0.06em] [&_[data-streamdown='code-block']>div:first-child]:text-muted-foreground/85 [&_[data-streamdown='code-block']>div:first-child]:shadow-none",
   "[&_[data-streamdown='code-block']>div:last-child]:!w-full [&_[data-streamdown='code-block']>div:last-child]:min-w-0 [&_[data-streamdown='code-block']>div:last-child]:border-0 [&_[data-streamdown='code-block']>div:last-child]:rounded-none [&_[data-streamdown='code-block']>div:last-child]:bg-transparent [&_[data-streamdown='code-block']>div:last-child]:p-0 [&_[data-streamdown='code-block']>div:last-child]:shadow-none",
   "[&_[data-streamdown='code-block-body']]:!bg-muted/40 [&_[data-streamdown='code-block-body']]:!rounded-xl",
   "[&_pre]:group [&_pre]:my-0 [&_pre]:block [&_pre]:!w-full [&_pre]:!min-w-0 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:overflow-y-hidden [&_pre]:border-0 [&_pre]:bg-transparent [&_pre]:px-0 [&_pre]:pt-0 [&_pre]:pb-2 [&_pre]:shadow-none [&_pre]:outline-none [&_pre]:ring-0",
@@ -386,6 +389,7 @@ export const StreamdownRender = React.memo(function StreamdownRender({
   streaming = false,
   variant = "default",
   imageActions,
+  artifactActions,
 }: StreamdownRenderProps) {
   const normalizedContent = React.useMemo(() => normalizeStreamdownContent(content), [content]);
   const plugins = useStreamdownPlugins(normalizedContent);
@@ -441,24 +445,26 @@ export const StreamdownRender = React.memo(function StreamdownRender({
         />
       ) : null}
       {markdownSegments.map((segment, index) => (
-        <MarkdownImageActionsContext.Provider key={`markdown-${index}`} value={imageActions ?? null}>
-          <Streamdown
-            className={activeMarkdownClassName}
-            components={components}
-            controls={STREAMDOWN_CONTROLS}
-            plugins={plugins}
-            remend={STREAMDOWN_REMEND}
-            linkSafety={STREAMDOWN_LINK_SAFETY}
-            caret={streaming ? STREAMDOWN_CARET : undefined}
-            mode={streaming ? "streaming" : "static"}
-            parseIncompleteMarkdown={streaming}
-            shikiTheme={["github-light", "github-dark"]}
-            animated={false}
-            isAnimating={streaming}
-          >
-            {segment.content}
-          </Streamdown>
-        </MarkdownImageActionsContext.Provider>
+        <MarkdownArtifactActionsContext.Provider key={`markdown-${index}`} value={artifactActions ?? null}>
+          <MarkdownImageActionsContext.Provider value={imageActions ?? null}>
+            <Streamdown
+              className={activeMarkdownClassName}
+              components={components}
+              controls={STREAMDOWN_CONTROLS}
+              plugins={plugins}
+              remend={STREAMDOWN_REMEND}
+              linkSafety={STREAMDOWN_LINK_SAFETY}
+              caret={streaming ? STREAMDOWN_CARET : undefined}
+              mode={streaming ? "streaming" : "static"}
+              parseIncompleteMarkdown={streaming}
+              shikiTheme={["github-light", "github-dark"]}
+              animated={false}
+              isAnimating={streaming}
+            >
+              {segment.content}
+            </Streamdown>
+          </MarkdownImageActionsContext.Provider>
+        </MarkdownArtifactActionsContext.Provider>
       ))}
     </div>
   );
