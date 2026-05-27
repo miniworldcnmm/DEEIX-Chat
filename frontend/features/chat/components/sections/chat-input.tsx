@@ -45,7 +45,7 @@ import type { ConversationOptions } from "@/shared/api/conversation.types";
 import type { MCPToolDTO } from "@/shared/api/mcp.types";
 import type { ModelOptionPolicy } from "@/shared/lib/model-option-policy";
 import type { SendShortcut } from "@/features/settings/types/settings";
-import { isSendShortcutEvent, shouldUseMultilineEnterForTouchInput } from "@/shared/lib/platform-shortcuts";
+import { isSendShortcutEvent } from "@/shared/lib/platform-shortcuts";
 
 const FilePreviewDialog = dynamic(
   () => import("@/features/files/components/preview/file-preview-dialog").then((module) => module.FilePreviewDialog),
@@ -408,9 +408,7 @@ function ChatInputComponent({
             if (event.nativeEvent.isComposing || composingRef.current || event.key === "Process" || event.keyCode === 229) {
               return;
             }
-            const shouldSend =
-              !(sendShortcut === "enter" && shouldUseMultilineEnterForTouchInput()) &&
-              isSendShortcutEvent(sendShortcut, event);
+            const shouldSend = isSendShortcutEvent(sendShortcut, event);
 
             if (shouldSend) {
               event.preventDefault();
