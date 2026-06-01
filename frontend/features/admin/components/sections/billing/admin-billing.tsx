@@ -1233,6 +1233,9 @@ export function AdminBillingPage() {
       await patchAdminBillingConfig(token, { mode: nextMode });
       invalidateAdminReferenceDataCache();
       toast.success(t("toast.billingModeChanged", { mode: t(`billingConfig.modes.${nextMode}`) }));
+      if (redemptionAvailabilityFilter === "available") {
+        void loadRedemptionCodes({}, { showLoading: false });
+      }
     } catch (error) {
       setBillingMode(previous);
       toast.error(t("toast.billingModeFailed"), { description: resolveErrorMessage(error) });
