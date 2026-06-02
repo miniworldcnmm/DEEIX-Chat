@@ -51,6 +51,7 @@
   --font-heiti: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
   --font-chat: var(--font-sans);
   --font-chat-weight: 400;
+  --font-chat-strong-weight: 700;
   --ui-font-scale: 1;
   --chat-font-scale: 1;
   --radius: 0.5rem;
@@ -115,6 +116,7 @@
   --font-heiti: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", sans-serif;
   --font-chat: var(--font-sans);
   --font-chat-weight: 400;
+  --font-chat-strong-weight: 700;
   --radius: 0.5rem;
   --shadow-x: 0;
   --shadow-y: 1px;
@@ -1064,14 +1066,17 @@
 
 :root[data-chat-font-weight="medium"] {
   --font-chat-weight: 500;
+  --font-chat-strong-weight: 700;
 }
 
 :root[data-chat-font-weight="semibold"] {
   --font-chat-weight: 600;
+  --font-chat-strong-weight: 800;
 }
 
 :root[data-chat-font-weight="bold"] {
   --font-chat-weight: 700;
+  --font-chat-strong-weight: 900;
 }
 
 :root[data-font-size="small"] {
@@ -1203,6 +1208,10 @@
   ):not(pre *):not(code):not(code *) {
     font-family: var(--font-chat);
     font-weight: var(--font-chat-weight);
+  }
+
+  .chat-font-content[data-chat-markdown-scope] :where(strong, strong *, b, b *):not(pre *):not(code):not(code *) {
+    font-weight: var(--font-chat-strong-weight);
   }
 
   .chat-font-content .katex,

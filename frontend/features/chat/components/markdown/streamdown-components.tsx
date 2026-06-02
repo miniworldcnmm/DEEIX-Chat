@@ -73,6 +73,11 @@ type MarkdownParagraphProps = React.HTMLAttributes<HTMLParagraphElement> & {
   node?: unknown;
 };
 
+type MarkdownStrongProps = React.HTMLAttributes<HTMLElement> & {
+  children?: React.ReactNode;
+  node?: unknown;
+};
+
 type MarkdownHeadingProps = React.HTMLAttributes<HTMLHeadingElement> & {
   children?: React.ReactNode;
 };
@@ -942,6 +947,21 @@ export function MarkdownParagraph({ children, className, node: _node, style, ...
     >
       {paragraphChildren}
     </p>
+  );
+}
+
+export function MarkdownStrong({ children, className, node: _node, style, ...props }: MarkdownStrongProps) {
+  return (
+    <strong
+      {...props}
+      className={cn("font-bold text-foreground", className)}
+      style={{
+        ...sanitizeHTMLStyle(style),
+        fontWeight: "var(--font-chat-strong-weight)",
+      }}
+    >
+      {children}
+    </strong>
   );
 }
 

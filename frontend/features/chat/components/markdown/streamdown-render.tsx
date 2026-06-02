@@ -31,6 +31,7 @@ import {
   MarkdownHTMLSpan,
   MarkdownHTMLSummary,
   MarkdownArtifactActionsContext,
+  MarkdownStrong,
   ThinkingHeading,
   type MarkdownArtifactActions,
   type MarkdownImageActions,
@@ -188,6 +189,7 @@ const DEFAULT_STREAMDOWN_COMPONENTS = {
   a: MarkdownLink,
   article: MarkdownHTMLArticle,
   aside: MarkdownHTMLAside,
+  b: MarkdownStrong,
   details: MarkdownHTMLDetails,
   div: MarkdownHTMLDiv,
   img: MarkdownImage,
@@ -196,6 +198,7 @@ const DEFAULT_STREAMDOWN_COMPONENTS = {
   pre: CollapsibleCodePre,
   section: MarkdownHTMLSection,
   span: MarkdownHTMLSpan,
+  strong: MarkdownStrong,
   summary: MarkdownHTMLSummary,
 } as const;
 
