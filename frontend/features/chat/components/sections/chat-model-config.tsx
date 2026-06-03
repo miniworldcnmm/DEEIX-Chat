@@ -79,6 +79,10 @@ type ChatModelConfigProps = {
   onOptionsReset: () => void;
 };
 
+type OptionTranslationResolver = ((key: string) => string) & {
+  has?: (key: string) => boolean;
+};
+
 const OPTION_LABEL_KEYS = new Set<string>([
   "budget_tokens",
   "cache_timeout",
@@ -595,24 +599,18 @@ function visualOptionsFromControls(
   });
 }
 
-function resolveOptionTitle(key: string, configuredLabel: string | undefined, translate: (key: string) => string): string {
-  if (OPTION_LABEL_KEYS.has(key)) {
-    try {
-      return translate(key.replaceAll(".", "__"));
-    } catch {
-      return configuredLabel?.trim() || key;
-    }
+function resolveOptionTitle(key: string, configuredLabel: string | undefined, translate: OptionTranslationResolver): string {
+  const translationKey = key.replaceAll(".", "__");
+  if (OPTION_LABEL_KEYS.has(key) && translate.has?.(translationKey)) {
+    return translate(translationKey);
   }
   return configuredLabel?.trim() || key;
 }
 
-function resolveOptionDescription(key: string, description: string | undefined, translate: (key: string) => string): string {
-  if (OPTION_DESCRIPTION_KEYS.has(key)) {
-    try {
-      return translate(key.replaceAll(".", "__"));
-    } catch {
-      return description?.trim() || "";
-    }
+function resolveOptionDescription(key: string, description: string | undefined, translate: OptionTranslationResolver): string {
+  const translationKey = key.replaceAll(".", "__");
+  if (OPTION_DESCRIPTION_KEYS.has(key) && translate.has?.(translationKey)) {
+    return translate(translationKey);
   }
   return description?.trim() || "";
 }
