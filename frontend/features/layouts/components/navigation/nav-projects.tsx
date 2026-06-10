@@ -89,6 +89,7 @@ type ProjectConversationState = {
   loaded: boolean
   error: boolean
 }
+type ProjectConversationStateMap = Record<string, ProjectConversationState>
 
 const PROJECT_CONVERSATION_PAGE_SIZE = 30
 const PROJECT_TREE_ACCORDION_TRANSITION: Transition = {
@@ -295,13 +296,14 @@ export function NavProjects() {
   const [shareTarget, setShareTarget] = React.useState<{ publicID: string; title: string } | null>(null)
   const [renameValue, setRenameValue] = React.useState("")
   const [expandedProjectIDs, setExpandedProjectIDs] = React.useState<Set<string>>(() => new Set())
-  const [projectConversationState, setProjectConversationState] = React.useState<Record<string, ProjectConversationState>>({})
+  const [projectConversationState, setProjectConversationState] = React.useState<ProjectConversationStateMap>({})
   const [openProjectMenuID, setOpenProjectMenuID] = React.useState<string | null>(null)
   const [hoveredProjectMenuID, setHoveredProjectMenuID] = React.useState<string | null>(null)
   const [hoveredProjectCreateID, setHoveredProjectCreateID] = React.useState<string | null>(null)
   const [hoveredProjectRowID, setHoveredProjectRowID] = React.useState<string | null>(null)
   const [focusedProjectRowID, setFocusedProjectRowID] = React.useState<string | null>(null)
   const projectConversationStateRef = React.useRef(projectConversationState)
+  const expandedProjectIDsRef = React.useRef(expandedProjectIDs)
   const activeConversationProjectID = React.useMemo(
     () => items.find((item) => item.publicID === activeConversationID)?.projectID ?? "",
     [activeConversationID, items],
@@ -314,9 +316,17 @@ export function NavProjects() {
     failureMessage: tRecent("exportFailed"),
   })
 
-  React.useEffect(() => {
-    projectConversationStateRef.current = projectConversationState
-  }, [projectConversationState])
+  const updateProjectConversationState = React.useCallback((updater: (prev: ProjectConversationStateMap) => ProjectConversationStateMap) => {
+    const next = updater(projectConversationStateRef.current)
+    projectConversationStateRef.current = next
+    setProjectConversationState(next)
+  }, [])
+
+  const updateExpandedProjectIDs = React.useCallback((updater: (prev: Set<string>) => Set<string>) => {
+    const next = updater(expandedProjectIDsRef.current)
+    expandedProjectIDsRef.current = next
+    setExpandedProjectIDs(next)
+  }, [])
 
   const closeDraft = React.useCallback(() => {
     setDraft(null)
@@ -378,7 +388,7 @@ export function NavProjects() {
       return
     }
 
-    setProjectConversationState((prev) => ({
+    updateProjectConversationState((prev) => ({
       ...prev,
       [projectID]: {
         items: prev[projectID]?.items ?? [],
@@ -390,13 +400,13 @@ export function NavProjects() {
 
     const token = await resolveAccessToken()
     if (!token) {
-      setProjectConversationState((prev) => ({
+      updateProjectConversationState((prev) => ({
         ...prev,
         [projectID]: {
-          items: [],
+          items: prev[projectID]?.items ?? [],
           loading: false,
-          loaded: true,
-          error: false,
+          loaded: false,
+          error: true,
         },
       }))
       return
@@ -410,7 +420,7 @@ export function NavProjects() {
         starred: "all",
         project: projectID,
       })
-      setProjectConversationState((prev) => ({
+      updateProjectConversationState((prev) => ({
         ...prev,
         [projectID]: {
           items: sortByUpdatedAtDesc(data.results ?? []),
@@ -420,7 +430,7 @@ export function NavProjects() {
         },
       }))
     } catch {
-      setProjectConversationState((prev) => ({
+      updateProjectConversationState((prev) => ({
         ...prev,
         [projectID]: {
           items: prev[projectID]?.items ?? [],
@@ -430,12 +440,12 @@ export function NavProjects() {
         },
       }))
     }
-  }, [])
+  }, [updateProjectConversationState])
 
   const ensureProjectExpanded = React.useCallback(
     (projectID: string) => {
       const shouldLoad = !projectConversationStateRef.current[projectID]?.loaded
-      setExpandedProjectIDs((prev) => {
+      updateExpandedProjectIDs((prev) => {
         if (prev.has(projectID)) {
           return prev
         }
@@ -447,20 +457,19 @@ export function NavProjects() {
         void loadProjectConversations(projectID)
       }
     },
-    [loadProjectConversations],
+    [loadProjectConversations, updateExpandedProjectIDs],
   )
 
   const toggleProjectExpanded = React.useCallback(
     (projectID: string) => {
       const shouldLoad = !projectConversationStateRef.current[projectID]?.loaded
-      let expandedNext = false
-      setExpandedProjectIDs((prev) => {
+      const expandedNext = !expandedProjectIDsRef.current.has(projectID)
+      updateExpandedProjectIDs((prev) => {
         const next = new Set(prev)
         if (next.has(projectID)) {
           next.delete(projectID)
         } else {
           next.add(projectID)
-          expandedNext = true
         }
         return next
       })
@@ -468,7 +477,7 @@ export function NavProjects() {
         void loadProjectConversations(projectID)
       }
     },
-    [loadProjectConversations],
+    [loadProjectConversations, updateExpandedProjectIDs],
   )
 
   const startProjectConversation = React.useCallback(
@@ -494,7 +503,7 @@ export function NavProjects() {
       return
     }
 
-    setProjectConversationState((prev) => {
+    updateProjectConversationState((prev) => {
       const projectIDs = Object.keys(prev)
       if (projectIDs.length === 0) {
         return prev
@@ -541,7 +550,7 @@ export function NavProjects() {
 
       return changed ? next : prev
     })
-  }, [items, lastChange])
+  }, [items, lastChange, updateProjectConversationState])
 
   const commitDraft = React.useCallback(async () => {
     const name = draft?.name.trim() ?? ""
@@ -579,12 +588,12 @@ export function NavProjects() {
       router.push("/chat")
     }
     if (deleted) {
-      setExpandedProjectIDs((prev) => {
+      updateExpandedProjectIDs((prev) => {
         const next = new Set(prev)
         next.delete(deletingProjectID)
         return next
       })
-      setProjectConversationState((prev) => {
+      updateProjectConversationState((prev) => {
         const { [deletingProjectID]: _deleted, ...next } = prev
         return next
       })
@@ -603,6 +612,8 @@ export function NavProjects() {
     pathname,
     projectConversationState,
     router,
+    updateExpandedProjectIDs,
+    updateProjectConversationState,
   ])
 
   React.useEffect(() => {
@@ -655,6 +666,7 @@ export function NavProjects() {
             {projects.map((project) => {
               const expanded = expandedProjectIDs.has(project.publicID)
               const conversationState = projectConversationState[project.publicID]
+              const conversationLoading = expanded && (!conversationState || conversationState.loading)
               const hasActiveChild = Boolean(conversationState?.items.some((item) => item.publicID === activeConversationID))
               const active =
                 ((pathname === "/recent" || pathname === "/chat") && activeProjectID === project.publicID) ||
@@ -747,7 +759,7 @@ export function NavProjects() {
                         style={PROJECT_TREE_ACCORDION_MASK_STYLE}
                       >
                         <SidebarMenuSub className="mx-0 w-full translate-x-0 border-l-0 px-0 py-0.5">
-                          {conversationState?.loading ? (
+                          {conversationLoading ? (
                             <SidebarMenuSubItem>
                               <div className="flex h-7 w-full items-center gap-2 rounded-md pl-8 pr-2 text-xs text-muted-foreground">
                                 <Spinner className="size-3.5" />
