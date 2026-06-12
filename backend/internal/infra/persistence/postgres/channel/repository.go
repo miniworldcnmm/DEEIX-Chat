@@ -307,8 +307,9 @@ func (r *Repo) ReorderModels(ctx context.Context, orderedModelIDs []uint) error 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var rows []model.LLMPlatformModel
 		if err := tx.
-			Select("id").
-			Order("sort_order ASC, id ASC").
+			Table("llm_platform_models AS m").
+			Select("m.id").
+			Order(modelDisplayOrder("m", "ASC")).
 			Find(&rows).Error; err != nil {
 			return translateError(err)
 		}
@@ -554,12 +555,30 @@ func modelListOrder(sort string) string {
 	case "sourceCount_desc":
 		return "source_count DESC, m.id DESC"
 	case "sortOrder_asc":
-		return "m.sort_order ASC, m.id ASC"
+		return modelDisplayOrder("m", "ASC")
 	case "updated_desc":
 		return "m.updated_at DESC, m.id DESC"
 	default:
-		return "m.sort_order ASC, m.id ASC"
+		return modelDisplayOrder("m", "ASC")
 	}
+}
+
+func modelDisplayOrder(alias string, direction string) string {
+	prefix := ""
+	if strings.TrimSpace(alias) != "" {
+		prefix = strings.TrimSpace(alias) + "."
+	}
+	sortDirection := "ASC"
+	if strings.EqualFold(strings.TrimSpace(direction), "DESC") {
+		sortDirection = "DESC"
+	}
+	vendorKey := modelVendorOrderKey(prefix)
+	groupOrder := "(SELECT MIN(anchor.sort_order) FROM llm_platform_models AS anchor WHERE " + modelVendorOrderKey("anchor.") + " = " + vendorKey + ")"
+	return groupOrder + " " + sortDirection + ", " + vendorKey + " ASC, " + prefix + "sort_order " + sortDirection + ", " + prefix + "id ASC"
+}
+
+func modelVendorOrderKey(prefix string) string {
+	return "COALESCE(NULLIF(TRIM(LOWER(" + prefix + "vendor)), ''), LOWER(" + prefix + "name))"
 }
 
 // ---------------------------------------------------------------------------

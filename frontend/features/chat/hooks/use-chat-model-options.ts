@@ -28,20 +28,6 @@ type ModelCatalogRefreshResult = {
   modelOptionPolicy: ModelOptionPolicy | null;
 };
 
-function normalizeModelSortOrder(value: number): number {
-  return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
-}
-
-function sortPublicModelsBySortOrder(models: PublicModelDTO[]): PublicModelDTO[] {
-  return models
-    .map((model, index) => ({ model, index }))
-    .sort((left, right) => {
-      const sortDiff = normalizeModelSortOrder(left.model.sortOrder) - normalizeModelSortOrder(right.model.sortOrder);
-      return sortDiff || left.index - right.index;
-    })
-    .map(({ model }) => model);
-}
-
 function parseJSONObject(raw: string): Record<string, unknown> | null {
   const normalized = raw.trim();
   if (!normalized) {
@@ -349,7 +335,7 @@ export function useChatModelOptions({
         listPublicModels(token),
         getModelOptionPolicy(token).catch(() => null),
       ]);
-      return { models: sortPublicModelsBySortOrder(models), modelOptionPolicy };
+      return { models, modelOptionPolicy };
     })().finally(() => {
       if (modelCatalogRequestRef.current === request) {
         modelCatalogRequestRef.current = null;

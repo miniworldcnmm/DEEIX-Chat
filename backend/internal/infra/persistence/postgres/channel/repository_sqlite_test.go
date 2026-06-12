@@ -83,6 +83,114 @@ func TestListModelsSQLiteUsesPortableRouteStats(t *testing.T) {
 	assertProtocolsJSON(t, items[1].ProtocolsJSON, []string{})
 }
 
+func TestListModelsSQLiteSortOrderKeepsVendorGroups(t *testing.T) {
+	db := openChannelSQLiteTestDB(t)
+	ctx := context.Background()
+
+	models := []model.LLMPlatformModel{
+		{Name: "claude-sonnet-4.6", Vendor: "anthropic", Status: "active", SortOrder: 100},
+		{Name: "gpt-5.5", Vendor: "openai", Status: "active", SortOrder: 200},
+		{Name: "gemini-3.1-pro", Vendor: "google", Status: "active", SortOrder: 300},
+		{Name: "grok-4.3", Vendor: "xai", Status: "active", SortOrder: 400},
+		{Name: "claude-fable-5", Vendor: "anthropic", Status: "active", SortOrder: 1000},
+	}
+	if err := db.Create(&models).Error; err != nil {
+		t.Fatalf("create platform models: %v", err)
+	}
+
+	items, total, err := NewRepo(db).ListModels(ctx, repository.ListChannelModelsInput{
+		Limit: 10,
+		Sort:  "sortOrder_asc",
+	})
+	if err != nil {
+		t.Fatalf("ListModels() error = %v", err)
+	}
+	if total != int64(len(models)) {
+		t.Fatalf("expected total %d, got %d", len(models), total)
+	}
+	got := modelNames(items)
+	want := []string{
+		"claude-sonnet-4.6",
+		"claude-fable-5",
+		"gpt-5.5",
+		"gemini-3.1-pro",
+		"grok-4.3",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected model order %v, got %v", want, got)
+	}
+}
+
+func TestListModelsSQLiteSortOrderUsesAllModelsForVendorGroupAnchor(t *testing.T) {
+	db := openChannelSQLiteTestDB(t)
+	ctx := context.Background()
+
+	models := []model.LLMPlatformModel{
+		{Name: "claude-sonnet-4.6", Vendor: "anthropic", Status: "inactive", SortOrder: 100},
+		{Name: "gpt-5.5", Vendor: "openai", Status: "active", SortOrder: 200},
+		{Name: "gemini-3.1-pro", Vendor: "google", Status: "active", SortOrder: 300},
+		{Name: "claude-fable-5", Vendor: "anthropic", Status: "active", SortOrder: 1000},
+	}
+	if err := db.Create(&models).Error; err != nil {
+		t.Fatalf("create platform models: %v", err)
+	}
+
+	items, _, err := NewRepo(db).ListModels(ctx, repository.ListChannelModelsInput{
+		Limit:      10,
+		OnlyActive: true,
+		Sort:       "sortOrder_asc",
+	})
+	if err != nil {
+		t.Fatalf("ListModels() error = %v", err)
+	}
+	got := modelNames(items)
+	want := []string{
+		"claude-fable-5",
+		"gpt-5.5",
+		"gemini-3.1-pro",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected model order %v, got %v", want, got)
+	}
+}
+
+func TestReorderModelsSQLiteUsesVendorGroupDisplayOrder(t *testing.T) {
+	db := openChannelSQLiteTestDB(t)
+	ctx := context.Background()
+
+	models := []model.LLMPlatformModel{
+		{Name: "claude-sonnet-4.6", Vendor: "anthropic", Status: "active", SortOrder: 100},
+		{Name: "gpt-5.5", Vendor: "openai", Status: "active", SortOrder: 200},
+		{Name: "gemini-3.1-pro", Vendor: "google", Status: "active", SortOrder: 300},
+		{Name: "claude-fable-5", Vendor: "anthropic", Status: "active", SortOrder: 1000},
+	}
+	if err := db.Create(&models).Error; err != nil {
+		t.Fatalf("create platform models: %v", err)
+	}
+
+	repo := NewRepo(db)
+	if err := repo.ReorderModels(ctx, []uint{models[1].ID, models[0].ID, models[3].ID, models[2].ID}); err != nil {
+		t.Fatalf("ReorderModels() error = %v", err)
+	}
+	items, _, err := repo.ListModels(ctx, repository.ListChannelModelsInput{
+		Limit: 10,
+		Sort:  "sortOrder_asc",
+	})
+	if err != nil {
+		t.Fatalf("ListModels() error = %v", err)
+	}
+	got := modelNames(items)
+	want := []string{
+		"gpt-5.5",
+		"claude-sonnet-4.6",
+		"claude-fable-5",
+		"gemini-3.1-pro",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected model order %v, got %v", want, got)
+	}
+}
+
 func openChannelSQLiteTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -108,6 +216,14 @@ func openChannelSQLiteTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("migrate channel tables: %v", err)
 	}
 	return db
+}
+
+func modelNames(items []ModelListRow) []string {
+	results := make([]string, 0, len(items))
+	for _, item := range items {
+		results = append(results, item.PlatformModelName)
+	}
+	return results
 }
 
 func assertProtocolsJSON(t *testing.T, raw string, expected []string) {
