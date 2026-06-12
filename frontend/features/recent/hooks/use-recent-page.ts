@@ -34,11 +34,10 @@ import {
 } from "@/features/recent/utils/conversation-list";
 import { RECENT_PAGE_SIZE } from "@/features/recent/utils/recent-display";
 import type { RecentDeleteTarget, RecentRowState } from "@/features/recent/types/recent";
-import {
-  conversationMatchesSearch,
-  normalizeConversationSearchText,
-} from "@/shared/lib/conversation-search";
+import { normalizeConversationSearchText } from "@/shared/lib/conversation-search";
 import { downloadConversationExport } from "@/features/chat/model/conversation-export";
+
+const RECENT_SEARCH_DEBOUNCE_MS = 250;
 
 function isSharedConversation(item: ConversationDTO): boolean {
   return item.shareStatus === "active" && Boolean(item.shareID?.trim());
@@ -121,6 +120,7 @@ export function useRecentPage() {
   const searchParams = useSearchParams();
   const [projectFilter, setProjectFilter] = React.useState<ConversationProjectFilter>(() => searchParams.get("project") || "all");
   const [query, setQuery] = React.useState("");
+  const [debouncedQuery, setDebouncedQuery] = React.useState("");
   const [selectionMode, setSelectionMode] = React.useState(false);
   const [hoveredConversationID, setHoveredConversationID] = React.useState<string | null>(null);
   const [selectedConversationIDs, setSelectedConversationIDs] = React.useState<string[]>([]);
@@ -149,14 +149,16 @@ export function useRecentPage() {
     loadMoreFailedRef.current = loadMoreFailed;
   }, [loadMoreFailed]);
 
-  const normalizedQuery = normalizeConversationSearchText(query);
-  const filteredItems = React.useMemo(() => {
-    if (!normalizedQuery) {
-      return items;
-    }
+  const normalizedQuery = normalizeConversationSearchText(debouncedQuery);
+  const filteredItems = items;
 
-    return items.filter((item) => conversationMatchesSearch(item, normalizedQuery));
-  }, [items, normalizedQuery]);
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query);
+    }, RECENT_SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
   const lastAppliedChangeSequenceRef = React.useRef(0);
 
@@ -191,8 +193,12 @@ export function useRecentPage() {
       return;
     }
 
+    if (normalizedQuery && !items.some((item) => item.publicID === lastChange.publicID)) {
+      return;
+    }
+
     setItems((current) => upsertByPublicID(current, lastChange.item!));
-  }, [lastChange, projectFilter, shareFilter, starredFilter, statusFilter]);
+  }, [items, lastChange, normalizedQuery, projectFilter, shareFilter, starredFilter, statusFilter]);
 
   const loadPage = React.useCallback(
     async (page: number, options?: { replace?: boolean; version?: number }) => {
@@ -213,6 +219,7 @@ export function useRecentPage() {
         starred: starredFilter,
         share: shareFilter,
         project: projectFilter,
+        query: normalizedQuery,
       });
       if (requestVersion !== requestVersionRef.current) {
         return;
@@ -231,7 +238,7 @@ export function useRecentPage() {
       loadMoreFailedRef.current = false;
       pageRef.current = page;
     },
-    [projectFilter, shareFilter, starredFilter, statusFilter],
+    [normalizedQuery, projectFilter, shareFilter, starredFilter, statusFilter],
   );
 
   React.useEffect(() => {
@@ -262,7 +269,7 @@ export function useRecentPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadPage, projectFilter, shareFilter, starredFilter, statusFilter]);
+  }, [loadPage]);
 
   const loadMore = React.useCallback(async () => {
     if (loadingInitial || loadingMoreRef.current || !hasMore || loadMoreFailedRef.current) {

@@ -65,6 +65,7 @@ func (h *Handler) CreateConversation(c *gin.Context) {
 // @Param starred query string false "星标筛选: all|starred|unstarred"
 // @Param share query string false "分享筛选: all|shared|unshared"
 // @Param project query string false "项目筛选: all|unassigned|项目 public_id"
+// @Param q query string false "搜索关键词，匹配会话元数据、项目名称和消息正文"
 // @Success 200 {object} ConversationListResponseDoc
 // @Failure 500 {object} ErrorDoc
 // @Router /conversations [get]
@@ -76,8 +77,9 @@ func (h *Handler) ListConversations(c *gin.Context) {
 	starredFilter := normalizeConversationStarredFilter(c.Query("starred"))
 	shareFilter := normalizeConversationShareFilter(c.Query("share"))
 	projectFilter := normalizeConversationProjectQuery(c.Query("project"))
+	searchQuery := c.Query("q")
 
-	items, total, err := h.service.ListConversations(c.Request.Context(), userID, page, pageSize, statusFilter, starredFilter, shareFilter, projectFilter)
+	items, total, err := h.service.ListConversations(c.Request.Context(), userID, page, pageSize, statusFilter, starredFilter, shareFilter, projectFilter, searchQuery)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "list conversations failed")
 		return

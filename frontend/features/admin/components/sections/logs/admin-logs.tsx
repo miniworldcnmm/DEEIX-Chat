@@ -925,7 +925,6 @@ function AuditLogTable({ onOpenDetail }: { onOpenDetail: (item: AdminAuditLogDTO
       <TableToolbar
         query={logs.query}
         onQueryChange={logs.setQuery}
-        queryDebounceMs={0}
         queryPlaceholder={t("audit.searchPlaceholder")}
         filters={[
           {
@@ -1051,7 +1050,6 @@ function AuthLogTable({ onOpenDetail }: { onOpenDetail: (item: AdminUserAuthEven
       <TableToolbar
         query={logs.query}
         onQueryChange={logs.setQuery}
-        queryDebounceMs={0}
         queryPlaceholder={t("auth.searchPlaceholder")}
         filters={[
           {
@@ -1148,7 +1146,6 @@ function SystemEventTable({ onOpenDetail }: { onOpenDetail: (item: AdminSystemEv
       <TableToolbar
         query={logs.query}
         onQueryChange={logs.setQuery}
-        queryDebounceMs={0}
         queryPlaceholder={t("system.searchPlaceholder")}
         filters={[
           {
@@ -1278,7 +1275,6 @@ function UsageLogTable({ onOpenDetail }: { onOpenDetail: (item: AdminUsageLogDTO
       <TableToolbar
         query={logs.query}
         onQueryChange={logs.setQuery}
-        queryDebounceMs={0}
         queryPlaceholder={t("usage.searchPlaceholder")}
         filters={[
           {
@@ -1426,7 +1422,6 @@ function PaymentOrderTable({ onOpenDetail }: { onOpenDetail: (item: AdminPayment
       <TableToolbar
         query={logs.query}
         onQueryChange={logs.setQuery}
-        queryDebounceMs={0}
         queryPlaceholder={t("orders.searchPlaceholder")}
         filters={[
           {
@@ -1580,7 +1575,6 @@ function ConversationEventTable({ onOpenDetail }: { onOpenDetail: (item: AdminCo
       <TableToolbar
         query={logs.query}
         onQueryChange={logs.setQuery}
-        queryDebounceMs={0}
         queryPlaceholder={t("conversation.searchPlaceholder")}
         filters={[
           {
