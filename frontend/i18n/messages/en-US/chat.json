@@ -382,7 +382,8 @@
       "sections": {
         "file": "Files",
         "tool": "MCP",
-        "model": "Models"
+        "model": "Models",
+        "prompt": "Prompts"
       }
     },
     "mediaMode": {

@@ -23,6 +23,7 @@ import (
 	mcphttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/mcp"
 	memoryhttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/memory"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/middleware"
+	promptpresethttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/promptpreset"
 	settingshttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/settings"
 	usersettingshttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/usersettings"
 	"github.com/gin-gonic/gin"
@@ -56,6 +57,7 @@ type Modules struct {
 	Billing      *billinghttp.Module
 	Admin        *adminhttp.Module
 	Announcement *announcementhttp.Module
+	PromptPreset *promptpresethttp.Module
 	Settings     *settingshttp.Module
 	UserSettings *usersettingshttp.Module
 	StartupLog   func(*zap.Logger)
@@ -148,13 +150,16 @@ func NewEngine(cfg *config.Runtime, log *zap.Logger, modules Modules, hc HealthC
 	if modules.Announcement != nil {
 		modules.Announcement.RegisterRoutes(authRequired)
 	}
+	if modules.PromptPreset != nil {
+		modules.PromptPreset.RegisterRoutes(authRequired)
+	}
 	if modules.UserSettings != nil {
 		modules.UserSettings.RegisterRoutes(authRequired)
 	}
 	if modules.Settings != nil {
 		modules.Settings.RegisterRoutes(authRequired)
 	}
-	if modules.Admin != nil || modules.Auth != nil || modules.Billing != nil || modules.Channel != nil || modules.MCP != nil || modules.Settings != nil || modules.Announcement != nil {
+	if modules.Admin != nil || modules.Auth != nil || modules.Billing != nil || modules.Channel != nil || modules.MCP != nil || modules.Settings != nil || modules.Announcement != nil || modules.PromptPreset != nil {
 		adminGroup := authRequired.Group("/admin")
 		adminGroup.Use(middleware.AdminOnly())
 		if modules.Auth != nil {
@@ -177,6 +182,9 @@ func NewEngine(cfg *config.Runtime, log *zap.Logger, modules Modules, hc HealthC
 		}
 		if modules.Announcement != nil {
 			modules.Announcement.RegisterAdminRoutes(adminGroup)
+		}
+		if modules.PromptPreset != nil {
+			modules.PromptPreset.RegisterAdminRoutes(adminGroup)
 		}
 	}
 

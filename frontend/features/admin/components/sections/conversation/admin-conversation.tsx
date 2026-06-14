@@ -5,8 +5,9 @@ import { CircleHelp, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
-import { TaskModelField, type ModelOption } from "../shared/model-field";
+import { TaskModelField, type ModelOption } from "../shared/task-model-field";
 import { SettingsFieldEditor } from "../shared/settings-runtime-panel";
+import { ConversationPromptPresetsSection } from "@/features/admin/components/sections/conversation/conversation-prompt-presets";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,10 +37,10 @@ import {
   fieldID,
   flattenConversationSettings,
   resolveVisibleConversationFields,
-  resolveErrorMessage,
   toEditorField,
   type ConversationSettingsField,
 } from "@/features/admin/model/conversation-settings";
+import { resolveAdminErrorMessage } from "@/features/admin/utils/admin-error";
 import { buildTaskModelOptions } from "@/features/admin/model/task-model-options";
 import type { PatchSettingItem } from "@/shared/api/settings.types";
 import {
@@ -371,7 +372,7 @@ export function AdminConversationSettingsPage() {
       setSettingsMap(flattened);
       setSavedMap(flattened);
     } catch (error) {
-      toast.error(t("toast.loadFailed"), { description: resolveErrorMessage(error) });
+      toast.error(t("toast.loadFailed"), { description: resolveAdminErrorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -416,7 +417,7 @@ export function AdminConversationSettingsPage() {
       setSavedMap(flattened);
       toast.success(t("toast.updated"));
     } catch (error) {
-      toast.error(t("toast.saveFailed"), { description: resolveErrorMessage(error) });
+      toast.error(t("toast.saveFailed"), { description: resolveAdminErrorMessage(error) });
     } finally {
       setSaving(false);
     }
@@ -543,6 +544,10 @@ export function AdminConversationSettingsPage() {
           {contextCompressionFields.map((field, index) => renderField(field, index, { inset: Boolean(field.subgroupKey) }))}
         </SettingsFieldList>
       </SettingsSection>
+
+      <SettingsSectionSeparator />
+
+      <ConversationPromptPresetsSection />
 
       <SettingsSectionSeparator />
 

@@ -23,6 +23,7 @@ import (
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/memory"
 	appstorage "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/objectstorage"
 	appprocessing "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/processing"
+	apppromptpreset "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/promptpreset"
 	apprag "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/rag"
 	appruntime "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/runtime"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/settings"
@@ -43,6 +44,7 @@ import (
 	conversationrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/conversation"
 	mcprepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/mcp"
 	memoryrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/memory"
+	promptpresetrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/promptpreset"
 	settingsrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/settings"
 	systemeventrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/systemevent"
 	userrepo "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/postgres/user"
@@ -57,6 +59,7 @@ import (
 	conversationhttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/conversation"
 	mcphttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/mcp"
 	memoryhttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/memory"
+	promptpresethttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/promptpreset"
 	settingshttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/settings"
 	usersettingshttp "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/usersettings"
 	"github.com/gin-gonic/gin"
@@ -241,6 +244,11 @@ func NewApp() (*App, error) {
 	announcementService := announcement.NewService(announcementRepo)
 	announcementHandler := announcementhttp.NewHandler(announcementService)
 	announcementModule := announcementhttp.NewModule(announcementHandler)
+	promptPresetRepo := promptpresetrepo.NewRepo(db)
+	promptPresetService := apppromptpreset.NewService(promptPresetRepo)
+	promptPresetService.SetAuditWriter(auditService)
+	promptPresetHandler := promptpresethttp.NewHandler(promptPresetService)
+	promptPresetModule := promptpresethttp.NewModule(promptPresetHandler)
 
 	hc := newHealthChecker(db, cfg.CacheDriver, redisClient)
 	rateLimiter := buildRateLimiter(cfg, redisClient, memoryCache)
@@ -254,6 +262,7 @@ func NewApp() (*App, error) {
 		Billing:      billingModule,
 		Admin:        adminModule,
 		Announcement: announcementModule,
+		PromptPreset: promptPresetModule,
 		Settings:     settingsModule,
 		UserSettings: userSettingsModule,
 		StartupLog: func(log *zap.Logger) {

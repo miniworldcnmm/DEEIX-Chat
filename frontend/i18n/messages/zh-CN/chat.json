@@ -382,7 +382,8 @@
       "sections": {
         "file": "文件",
         "tool": "MCP",
-        "model": "模型"
+        "model": "模型",
+        "prompt": "提示词"
       }
     },
     "mediaMode": {

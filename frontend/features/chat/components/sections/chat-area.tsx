@@ -6,7 +6,7 @@ import { ArrowDownToLine } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { ChatLabel } from "@/features/chat/components/sections/chat-label";
-import { useMessageFeedback } from "@/features/chat/hooks/use-message-feedback";
+import { useChatMessageFeedback } from "@/features/chat/hooks/use-chat-message-feedback";
 import {
   AssistantMessageSkeleton,
   ChatInlineAlertCard,
@@ -16,12 +16,13 @@ import { areChatAreaMessagesRenderEqual } from "@/features/chat/model/chat-messa
 import { type AssistantReaction } from "@/features/chat/components/message/message-meta";
 import type { ChatAreaMessage, MessageAttachment } from "@/features/chat/types/messages";
 import { ChatMessageUser } from "@/features/chat/components/message/message-user";
-import { StreamdownRender } from "@/features/chat/components/markdown/streamdown-render";
+import { StreamdownRender } from "@/shared/components/markdown/streamdown-render";
 import type { OpenCodeArtifactInput } from "@/features/chat/model/chat-artifacts";
 import { CenteredEmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConversationShareExportIconDropdown } from "@/shared/components/conversation-share-export-menu";
 import { useCopyAction } from "@/shared/components/copy-action";
+import type { ChatModelOption } from "@/features/chat/types/chat-runtime";
 import { cn } from "@/lib/utils";
 
 function CompactDivider({ summaryPreview }: { summaryPreview: string }) {
@@ -77,6 +78,10 @@ type ChatAreaProps = {
   onContinueAssistantMessage?: (message: ChatAreaMessage) => Promise<void> | void;
   onEditAssistantMessage: (message: ChatAreaMessage, content: string) => Promise<boolean> | boolean;
   onEditUserMessage: (message: ChatAreaMessage, content: string) => Promise<boolean> | boolean;
+  modelOptions: ChatModelOption[];
+  selectedPlatformModelName: string;
+  onModelChange: (platformModelName: string) => void;
+  onModelCatalogRefresh?: () => void | Promise<void>;
   onEditImageAttachment?: (attachment: MessageAttachment, sourceModelName?: string) => void;
   onOpenCodeArtifact?: (message: ChatAreaMessage, artifact: OpenCodeArtifactInput) => void;
   onCycleMessageBranch: (parentPublicID: string | null, direction: "previous" | "next") => void;
@@ -114,6 +119,10 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   onContinueAssistantMessage,
   onEditAssistantMessage,
   onEditUserMessage,
+  modelOptions,
+  selectedPlatformModelName,
+  onModelChange,
+  onModelCatalogRefresh,
   onEditImageAttachment,
   onCycleMessageBranch,
   onReactAssistantMessage,
@@ -132,6 +141,10 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   onContinueAssistantMessage?: (message: ChatAreaMessage) => Promise<void> | void;
   onEditAssistantMessage: (message: ChatAreaMessage, content: string) => Promise<boolean> | boolean;
   onEditUserMessage: (message: ChatAreaMessage, content: string) => Promise<boolean> | boolean;
+  modelOptions: ChatModelOption[];
+  selectedPlatformModelName: string;
+  onModelChange: (platformModelName: string) => void;
+  onModelCatalogRefresh?: () => void | Promise<void>;
   onEditImageAttachment?: (attachment: MessageAttachment, sourceModelName?: string) => void;
   onCycleMessageBranch: (parentPublicID: string | null, direction: "previous" | "next") => void;
   onReactAssistantMessage: (publicID: string, reaction: AssistantReaction) => void;
@@ -174,6 +187,10 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
         busy={busy}
         onRetryUserMessage={onRetryUserMessage}
         onEditUserMessage={onEditUserMessage}
+        modelOptions={modelOptions}
+        selectedPlatformModelName={selectedPlatformModelName}
+        onModelChange={onModelChange}
+        onModelCatalogRefresh={onModelCatalogRefresh}
         onCycleMessageBranch={onCycleMessageBranch}
         onCopy={() => void onCopy()}
         copySucceeded={isCopied(copyKey)}
@@ -225,6 +242,10 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   previous.showLatency === next.showLatency &&
   previous.showTokenUsage === next.showTokenUsage &&
   previous.showBillingCost === next.showBillingCost &&
+  previous.modelOptions === next.modelOptions &&
+  previous.selectedPlatformModelName === next.selectedPlatformModelName &&
+  previous.onModelChange === next.onModelChange &&
+  previous.onModelCatalogRefresh === next.onModelCatalogRefresh &&
   previous.onEditImageAttachment === next.onEditImageAttachment &&
   previous.onOpenCodeArtifact === next.onOpenCodeArtifact &&
   areChatAreaMessagesRenderEqual(previous.item, next.item)
@@ -247,6 +268,10 @@ export function ChatArea({
   onContinueAssistantMessage,
   onEditAssistantMessage,
   onEditUserMessage,
+  modelOptions,
+  selectedPlatformModelName,
+  onModelChange,
+  onModelCatalogRefresh,
   onEditImageAttachment,
   onOpenCodeArtifact,
   onCycleMessageBranch,
@@ -266,12 +291,14 @@ export function ChatArea({
   splitRightInset = false,
 }: ChatAreaProps) {
   const t = useTranslations("chat");
-  const { getReaction, onReactAssistantMessage } = useMessageFeedback(messages);
+  const { getReaction, onReactAssistantMessage } = useChatMessageFeedback(messages);
   const stableOnRetryUserMessage = useStableEvent(onRetryUserMessage);
   const stableOnRetryAssistantMessage = useStableEvent(onRetryAssistantMessage);
   const stableOnContinueAssistantMessage = useStableEvent(onContinueAssistantMessage ?? (() => undefined));
   const stableOnEditAssistantMessage = useStableEvent(onEditAssistantMessage);
   const stableOnEditUserMessage = useStableEvent(onEditUserMessage);
+  const stableOnModelChange = useStableEvent(onModelChange);
+  const stableOnModelCatalogRefresh = useStableEvent(onModelCatalogRefresh ?? (() => undefined));
   const stableOnEditImageAttachment = useStableEvent((attachment: MessageAttachment, sourceModelName?: string) => {
     onEditImageAttachment?.(attachment, sourceModelName);
   });
@@ -341,6 +368,10 @@ export function ChatArea({
                   onContinueAssistantMessage={onContinueAssistantMessage ? stableOnContinueAssistantMessage : undefined}
                   onEditAssistantMessage={stableOnEditAssistantMessage}
                   onEditUserMessage={stableOnEditUserMessage}
+                  modelOptions={modelOptions}
+                  selectedPlatformModelName={selectedPlatformModelName}
+                  onModelChange={stableOnModelChange}
+                  onModelCatalogRefresh={onModelCatalogRefresh ? stableOnModelCatalogRefresh : undefined}
                   onEditImageAttachment={editImageAttachmentHandler}
                   onCycleMessageBranch={stableOnCycleMessageBranch}
                   onReactAssistantMessage={stableOnReactAssistantMessage}
