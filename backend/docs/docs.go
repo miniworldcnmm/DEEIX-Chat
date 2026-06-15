@@ -4900,6 +4900,98 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/password/reset/complete": {
+            "post": {
+                "description": "使用邮箱、验证码和新密码完成密码重置；失败时返回通用错误，避免暴露账号状态",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "完成密码重置",
+                "parameters": [
+                    {
+                        "description": "密码重置完成请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_auth.PasswordResetCompleteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_auth.PasswordResetCompleteResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_auth.ErrorDoc"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_auth.ErrorDoc"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/password/reset/start": {
+            "post": {
+                "description": "SMTP 配置可用时，向已验证邮箱发送密码重置验证码；失败时返回通用错误，避免暴露账号状态",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "发送密码重置验证码",
+                "parameters": [
+                    {
+                        "description": "密码重置验证码请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_auth.PasswordResetStartRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_auth.PasswordResetStartResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_auth.ErrorDoc"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_auth.ErrorDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/refresh": {
             "post": {
                 "description": "使用 HttpOnly refresh cookie 轮换并签发新的 access token",
@@ -10402,6 +10494,9 @@ const docTemplate = `{
                 "emailVerificationEnabled": {
                     "type": "boolean"
                 },
+                "passwordResetEnabled": {
+                    "type": "boolean"
+                },
                 "providers": {
                     "type": "array",
                     "items": {
@@ -10524,6 +10619,81 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/internal_transport_http_auth.MeResponse"
+                },
+                "errorMsg": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_transport_http_auth.PasswordResetCompleteRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "email",
+                "newPassword"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "newPassword": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "minLength": 8
+                }
+            }
+        },
+        "internal_transport_http_auth.PasswordResetCompleteResponse": {
+            "type": "object",
+            "properties": {
+                "changed": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_transport_http_auth.PasswordResetCompleteResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/internal_transport_http_auth.PasswordResetCompleteResponse"
+                },
+                "errorMsg": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_transport_http_auth.PasswordResetStartRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "internal_transport_http_auth.PasswordResetStartResponse": {
+            "type": "object",
+            "properties": {
+                "expiresAt": {
+                    "type": "string"
+                },
+                "sent": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_transport_http_auth.PasswordResetStartResponseDoc": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/internal_transport_http_auth.PasswordResetStartResponse"
                 },
                 "errorMsg": {
                     "type": "string"

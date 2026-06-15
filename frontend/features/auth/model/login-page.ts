@@ -2,7 +2,7 @@ import type { LoginOptionsData, LoginPageSettings } from "@/shared/api/auth.type
 import { ApiError } from "@/shared/api/http-client";
 import { DEFAULT_AUTH_NEXT_PATH } from "@/shared/auth/local-path";
 
-export type LoginMode = "login" | "register";
+export type LoginMode = "login" | "register" | "reset-password";
 export type ProviderAuthIntent = "login" | "register";
 
 export const DEFAULT_LOGIN_SETTINGS: LoginPageSettings = {
@@ -15,6 +15,7 @@ export const DEFAULT_LOGIN_OPTIONS: LoginOptionsData = {
   emailEnabled: true,
   emailRegistrationEnabled: true,
   emailVerificationEnabled: false,
+  passwordResetEnabled: false,
   turnstileRegistrationEnabled: false,
   turnstileSiteKey: "",
   providers: [],

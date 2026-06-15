@@ -34,6 +34,7 @@ type LoginOptions struct {
 	EmailEnabled                 bool
 	EmailRegistrationEnabled     bool
 	EmailVerificationEnabled     bool
+	PasswordResetEnabled         bool
 	TurnstileRegistrationEnabled bool
 	TurnstileSiteKey             string
 	Providers                    []IdentityProviderView
@@ -146,6 +147,7 @@ func (s *Service) GetLoginOptions(ctx context.Context) (*LoginOptions, error) {
 		EmailEnabled:                 cfg.EmailLoginEnabled,
 		EmailRegistrationEnabled:     cfg.EmailRegistrationEnabled,
 		EmailVerificationEnabled:     cfg.EmailVerificationEnabled,
+		PasswordResetEnabled:         passwordResetEnabled(cfg),
 		TurnstileRegistrationEnabled: cfg.TurnstileRegistrationEnabled,
 		TurnstileSiteKey:             cfg.TurnstileSiteKey,
 		Providers:                    providerViews,

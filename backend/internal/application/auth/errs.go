@@ -51,6 +51,8 @@ var (
 	ErrTwoFactorSetupNotPersisted = errors.New("two factor setup not persisted")
 	// ErrTwoFactorChallengeExpired 登录二次验证挑战已过期。
 	ErrTwoFactorChallengeExpired = errors.New("two factor challenge expired")
+	// ErrPasswordResetFailed 表示密码重置失败，避免暴露邮箱或账号状态。
+	ErrPasswordResetFailed = errors.New("password reset failed")
 )
 
 // IdentityProviderDeleteConflictError 携带身份源删除冲突的受影响用户数量。
