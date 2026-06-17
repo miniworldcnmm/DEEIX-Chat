@@ -699,6 +699,7 @@ func (s *Service) sendMessageInternal(
 		Options:        filteredOptions,
 	}
 	fullLLMMessages := llmMessages
+	applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &generateInput)
 	statefulContextConfig := buildPromptContextConfigSignature(cfg)
 	statefulContextState := buildPromptContextStateSignature(stableFullContextAttachments, prefixMemories)
 	statefulPrefixFingerprint := buildPromptStateFingerprint(promptStateFingerprintInput{
@@ -994,6 +995,7 @@ func (s *Service) sendMessageInternal(
 		_ = s.repo.UpdateConversationLastResponseID(ctx, input.ConversationID, "")
 		generateInput.PreviousResponseID = ""
 		generateInput.Messages = fullLLMMessages
+		applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &generateInput)
 		estimatedPromptTokens = estimatePromptTokens(fullLLMMessages)
 		initialPromptShape = summarizePromptShape("full_retry", generateInput.Messages, fullLLMMessages, "")
 		if traceRecorder != nil {
@@ -1102,12 +1104,14 @@ func (s *Service) sendMessageInternal(
 			followUpInput.Tools = nil
 			followUpInput.DisableTools = true
 			followUpInput.PreviousResponseID = ""
-		} else if routeConfig.Endpoint == llm.EndpointResponses && strings.TrimSpace(upstreamOutput.ResponseID) != "" {
+			applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &followUpInput)
+		} else if routeConfig.Endpoint == llm.EndpointResponses && supportsPreviousResponseIDRoute(route) && strings.TrimSpace(upstreamOutput.ResponseID) != "" {
 			followUpInput.PreviousResponseID = strings.TrimSpace(upstreamOutput.ResponseID)
 			followUpInput.Messages = []llm.Message{{Role: "tool", ToolResults: toolResult.ToolResults}}
 		} else {
 			followUpInput.Messages = llmMessages
 			followUpInput.PreviousResponseID = ""
+			applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &followUpInput)
 		}
 
 		nextOutput, nextErr := runGenerate(followUpInput)
@@ -1139,6 +1143,7 @@ func (s *Service) sendMessageInternal(
 		finalInput.Tools = nil
 		finalInput.DisableTools = true
 		finalInput.PreviousResponseID = ""
+		applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &finalInput)
 		nextOutput, nextErr := runGenerate(finalInput)
 		if handleCanceledGeneration(nextErr) {
 			return nil, retErr
