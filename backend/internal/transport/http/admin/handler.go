@@ -213,7 +213,7 @@ func (h *Handler) PatchUser(c *gin.Context) {
 	actorUserID := middleware.MustUserID(c)
 
 	rawID := c.Param("id")
-	parsedID, err := strconv.ParseUint(rawID, 10, 64)
+	parsedID, err := strconv.ParseUint(rawID, 10, strconv.IntSize)
 	if err != nil || parsedID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid user id")
 		return
@@ -584,7 +584,7 @@ func parseOptionalUintQuery(c *gin.Context, key string) (uint, bool) {
 	if raw == "" {
 		return 0, true
 	}
-	parsed, err := strconv.ParseUint(raw, 10, 64)
+	parsed, err := strconv.ParseUint(raw, 10, strconv.IntSize)
 	if err != nil || parsed == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid "+key)
 		return 0, false
@@ -622,7 +622,7 @@ func (h *Handler) RevokeUserSessions(c *gin.Context) {
 	actorUserID := middleware.MustUserID(c)
 
 	rawID := c.Param("id")
-	parsedID, err := strconv.ParseUint(rawID, 10, 64)
+	parsedID, err := strconv.ParseUint(rawID, 10, strconv.IntSize)
 	if err != nil || parsedID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid user id")
 		return
@@ -670,7 +670,7 @@ func (h *Handler) UpdateUserStatus(c *gin.Context) {
 	actorUserID := middleware.MustUserID(c)
 
 	rawID := c.Param("id")
-	parsedID, err := strconv.ParseUint(rawID, 10, 64)
+	parsedID, err := strconv.ParseUint(rawID, 10, strconv.IntSize)
 	if err != nil || parsedID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid user id")
 		return
@@ -741,7 +741,7 @@ func (h *Handler) ResetUserPassword(c *gin.Context) {
 	actorUserID := middleware.MustUserID(c)
 
 	rawID := c.Param("id")
-	parsedID, err := strconv.ParseUint(rawID, 10, 64)
+	parsedID, err := strconv.ParseUint(rawID, 10, strconv.IntSize)
 	if err != nil || parsedID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid user id")
 		return
@@ -794,7 +794,7 @@ func (h *Handler) ResetUserPassword(c *gin.Context) {
 func (h *Handler) ResetUserTwoFactor(c *gin.Context) {
 	actorUserID := middleware.MustUserID(c)
 	rawID := c.Param("id")
-	parsedID, err := strconv.ParseUint(rawID, 10, 64)
+	parsedID, err := strconv.ParseUint(rawID, 10, strconv.IntSize)
 	if err != nil || parsedID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid user id")
 		return
@@ -843,7 +843,7 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 	actorUserID := middleware.MustUserID(c)
 
 	rawID := c.Param("id")
-	parsedID, err := strconv.ParseUint(rawID, 10, 64)
+	parsedID, err := strconv.ParseUint(rawID, 10, strconv.IntSize)
 	if err != nil || parsedID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid user id")
 		return
@@ -897,7 +897,7 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 func (h *Handler) ListUserAuthEvents(c *gin.Context) {
 	var userID uint
 	if raw := c.Query("user_id"); raw != "" {
-		parsedID, err := strconv.ParseUint(raw, 10, 64)
+		parsedID, err := strconv.ParseUint(raw, 10, strconv.IntSize)
 		if err != nil || parsedID == 0 {
 			response.Error(c, http.StatusBadRequest, "invalid user_id")
 			return

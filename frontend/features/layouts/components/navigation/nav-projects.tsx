@@ -3,7 +3,7 @@
 import * as React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AnimatePresence, motion, type Transition } from "motion/react"
-import { PencilLine, Star, StarOff, Trash } from "lucide-react"
+import { ChevronDown, PencilLine, Star, StarOff, Trash } from "lucide-react"
 import { useTranslations } from "next-intl"
 
 import { Ellipsis } from "@/components/animate-ui/icons/ellipsis"
@@ -22,6 +22,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Collapsible,
+} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -55,6 +58,7 @@ import {
   ConversationShareDialog,
   sharePatchFromDTO,
 } from "@/features/chat/components/sections/chat-share-dialog"
+import { CollapsibleMotionContent } from "@/shared/components/collapsible-motion-content"
 import { useChatConversationExport } from "@/features/chat/hooks/use-chat-conversation-export"
 import { useChatSession } from "@/features/chat/context/chat-session-context"
 import { DeleteFilesOption } from "@/shared/components/delete-files-option"
@@ -70,6 +74,7 @@ import { sortByUpdatedAtDesc, upsertByPublicID, removeByPublicID } from "@/featu
 import { listConversations } from "@/shared/api/conversation"
 import type { ConversationDTO } from "@/shared/api/conversation.types"
 import { resolveAccessToken } from "@/shared/auth/resolve-access-token"
+import { useStoredBoolean } from "@/shared/hooks/use-stored-boolean"
 import { cn } from "@/lib/utils"
 
 type ProjectDraft = {
@@ -108,36 +113,101 @@ const PROJECT_TREE_ACCORDION_MASK_STYLE = {
   overflow: "hidden",
 } satisfies React.CSSProperties
 const PROJECT_CREATE_ACTION_CLASS =
-  "static size-7 shrink-0 opacity-100 transition-[background-color,color,opacity,transform] duration-150"
+  "static size-7 shrink-0 opacity-0 transition-[background-color,color,opacity,transform] duration-150 group-hover/project-create:opacity-100 group-focus-within/project-create:opacity-100"
+const PROJECTS_OPEN_STORAGE_KEY = "deeix.sidebar.projects.open"
+const PROJECT_EXPANDED_IDS_STORAGE_KEY = "deeix.sidebar.projects.expanded"
 
 type ProjectFolderIconHandle = {
   startAnimation: () => void
   stopAnimation: () => void
 }
 
+function readStoredProjectIDSet(storageKey: string): Set<string> {
+  if (typeof window === "undefined") {
+    return new Set()
+  }
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]") as unknown
+    if (!Array.isArray(parsed)) {
+      return new Set()
+    }
+    return new Set(parsed.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean))
+  } catch {
+    return new Set()
+  }
+}
+
+function hasStoredProjectIDSet(storageKey: string): boolean {
+  if (typeof window === "undefined") {
+    return false
+  }
+
+  try {
+    return window.localStorage.getItem(storageKey) !== null
+  } catch {
+    return false
+  }
+}
+
+function writeStoredProjectIDSet(storageKey: string, value: Set<string>) {
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(Array.from(value)))
+  } catch {
+    // localStorage can be unavailable in private browsing or strict environments.
+  }
+}
+
 function ProjectGroupHeader({
   title,
   createLabel,
+  contentID,
+  open,
   onCreate,
+  onOpenChange,
+  toggleLabel,
 }: {
   title: string
   createLabel: string
+  contentID: string
+  open: boolean
   onCreate: () => void
+  onOpenChange: (open: boolean) => void
+  toggleLabel: string
 }) {
   const [createHovered, setCreateHovered] = React.useState(false)
 
   return (
-    <div className="group/project-create flex h-8 items-center">
-      <SidebarGroupLabel className="min-w-0 flex-1 shrink pr-2">{title}</SidebarGroupLabel>
+    <div className="group/project-create flex h-8 items-center gap-1">
+      <SidebarGroupLabel
+        asChild
+        className="w-fit max-w-full self-start cursor-pointer gap-1 pr-1 transition-[color,margin,opacity] hover:text-sidebar-foreground"
+      >
+        <button
+          type="button"
+          aria-controls={contentID}
+          aria-expanded={open}
+          aria-label={toggleLabel}
+          onClick={() => onOpenChange(!open)}
+        >
+          <span className="min-w-0 truncate text-left">{title}</span>
+          <ChevronDown
+            className={cn(
+              "!size-3 stroke-1.5 transition-transform duration-200",
+              !open && "-rotate-90",
+            )}
+          />
+        </button>
+      </SidebarGroupLabel>
       <SidebarGroupAction
         type="button"
         aria-label={createLabel}
-        className={PROJECT_CREATE_ACTION_CLASS}
+        className={cn(PROJECT_CREATE_ACTION_CLASS, "ml-auto")}
         onMouseEnter={() => setCreateHovered(true)}
         onMouseLeave={() => setCreateHovered(false)}
         onClick={onCreate}
       >
-        <PlusIcon size={18} strokeWidth={1.8} animate={createHovered ? "default" : undefined} />
+        <PlusIcon size={14} strokeWidth={1.8} animate={createHovered ? "default" : undefined} />
       </SidebarGroupAction>
     </div>
   )
@@ -297,15 +367,18 @@ export function NavProjects() {
   const [shareTarget, setShareTarget] = React.useState<{ publicID: string; title: string } | null>(null)
   const [renameValue, setRenameValue] = React.useState("")
   const [autoRenamingConversationID, setAutoRenamingConversationID] = React.useState<string | null>(null)
-  const [expandedProjectIDs, setExpandedProjectIDs] = React.useState<Set<string>>(() => new Set())
+  const [expandedProjectIDs, setExpandedProjectIDs] = React.useState<Set<string>>(() => readStoredProjectIDSet(PROJECT_EXPANDED_IDS_STORAGE_KEY))
   const [projectConversationState, setProjectConversationState] = React.useState<ProjectConversationStateMap>({})
   const [openProjectMenuID, setOpenProjectMenuID] = React.useState<string | null>(null)
   const [hoveredProjectMenuID, setHoveredProjectMenuID] = React.useState<string | null>(null)
   const [hoveredProjectCreateID, setHoveredProjectCreateID] = React.useState<string | null>(null)
   const [hoveredProjectRowID, setHoveredProjectRowID] = React.useState<string | null>(null)
   const [focusedProjectRowID, setFocusedProjectRowID] = React.useState<string | null>(null)
+  const [projectsOpen, setProjectsOpen] = useStoredBoolean(PROJECTS_OPEN_STORAGE_KEY, true)
   const projectConversationStateRef = React.useRef(projectConversationState)
   const expandedProjectIDsRef = React.useRef(expandedProjectIDs)
+  const activeRevealedProjectIDsRef = React.useRef(new Set<string>())
+  const hasStoredExpandedProjectIDsRef = React.useRef(hasStoredProjectIDSet(PROJECT_EXPANDED_IDS_STORAGE_KEY))
   const activeConversationProjectID = React.useMemo(
     () => items.find((item) => item.publicID === activeConversationID)?.projectID ?? "",
     [activeConversationID, items],
@@ -313,6 +386,7 @@ export function NavProjects() {
   const deleteProjectConversationsID = React.useId()
   const deleteProjectFilesID = React.useId()
   const deleteConversationFilesID = React.useId()
+  const projectsContentID = React.useId()
   const onExportConversation = useChatConversationExport({
     successMessage: tRecent("exported"),
     failureMessage: tRecent("exportFailed"),
@@ -324,10 +398,17 @@ export function NavProjects() {
     setProjectConversationState(next)
   }, [])
 
-  const updateExpandedProjectIDs = React.useCallback((updater: (prev: Set<string>) => Set<string>) => {
+  const updateExpandedProjectIDs = React.useCallback((updater: (prev: Set<string>) => Set<string>, persist = false) => {
     const next = updater(expandedProjectIDsRef.current)
     expandedProjectIDsRef.current = next
     setExpandedProjectIDs(next)
+    if (persist) {
+      hasStoredExpandedProjectIDsRef.current = true
+      writeStoredProjectIDSet(
+        PROJECT_EXPANDED_IDS_STORAGE_KEY,
+        new Set(Array.from(next).filter((projectID) => !activeRevealedProjectIDsRef.current.has(projectID))),
+      )
+    }
   }, [])
 
   const closeDraft = React.useCallback(() => {
@@ -464,9 +545,22 @@ export function NavProjects() {
     }
   }, [updateProjectConversationState])
 
+  React.useEffect(() => {
+    const visibleProjectIDs = new Set(projects.map((project) => project.publicID))
+    expandedProjectIDs.forEach((projectID) => {
+      if (!visibleProjectIDs.has(projectID)) {
+        return
+      }
+      void loadProjectConversations(projectID)
+    })
+  }, [expandedProjectIDs, loadProjectConversations, projects])
+
   const ensureProjectExpanded = React.useCallback(
-    (projectID: string) => {
+    (projectID: string, persist = false) => {
       const shouldLoad = !projectConversationStateRef.current[projectID]?.loaded
+      if (persist) {
+        activeRevealedProjectIDsRef.current.delete(projectID)
+      }
       updateExpandedProjectIDs((prev) => {
         if (prev.has(projectID)) {
           return prev
@@ -474,7 +568,7 @@ export function NavProjects() {
         const next = new Set(prev)
         next.add(projectID)
         return next
-      })
+      }, persist)
       if (shouldLoad) {
         void loadProjectConversations(projectID)
       }
@@ -486,6 +580,7 @@ export function NavProjects() {
     (projectID: string) => {
       const shouldLoad = !projectConversationStateRef.current[projectID]?.loaded
       const expandedNext = !expandedProjectIDsRef.current.has(projectID)
+      activeRevealedProjectIDsRef.current.delete(projectID)
       updateExpandedProjectIDs((prev) => {
         const next = new Set(prev)
         if (next.has(projectID)) {
@@ -494,7 +589,7 @@ export function NavProjects() {
           next.add(projectID)
         }
         return next
-      })
+      }, true)
       if (expandedNext && shouldLoad) {
         void loadProjectConversations(projectID)
       }
@@ -504,7 +599,7 @@ export function NavProjects() {
 
   const startProjectConversation = React.useCallback(
     (projectID: string) => {
-      ensureProjectExpanded(projectID)
+      ensureProjectExpanded(projectID, true)
       requestNewConversation({ projectID })
       router.push(`/chat?project_id=${encodeURIComponent(projectID)}`)
       if (isMobile) {
@@ -515,9 +610,11 @@ export function NavProjects() {
   )
 
   React.useEffect(() => {
-    if (activeProjectID) {
-      ensureProjectExpanded(activeProjectID)
+    if (!activeProjectID || hasStoredExpandedProjectIDsRef.current || activeRevealedProjectIDsRef.current.has(activeProjectID)) {
+      return
     }
+    activeRevealedProjectIDsRef.current.add(activeProjectID)
+    ensureProjectExpanded(activeProjectID, false)
   }, [activeProjectID, ensureProjectExpanded])
 
   React.useEffect(() => {
@@ -614,7 +711,7 @@ export function NavProjects() {
         const next = new Set(prev)
         next.delete(deletingProjectID)
         return next
-      })
+      }, true)
       updateProjectConversationState((prev) => {
         const { [deletingProjectID]: _deleted, ...next } = prev
         return next
@@ -661,14 +758,22 @@ export function NavProjects() {
     return (
       <>
         <div className="relative z-10 group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0">
-          <SidebarGroup>
-            <ProjectGroupHeader
-              title={t("title")}
-              createLabel={t("create")}
-              onCreate={() => setDraft({ name: "", systemPrompt: "" })}
-            />
-            <div className="px-2 py-1 text-xs text-sidebar-foreground/55">{t("empty")}</div>
-          </SidebarGroup>
+          <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
+            <SidebarGroup>
+              <ProjectGroupHeader
+                title={t("title")}
+                createLabel={t("create")}
+                contentID={projectsContentID}
+                open={projectsOpen}
+                onCreate={() => setDraft({ name: "", systemPrompt: "" })}
+                onOpenChange={setProjectsOpen}
+                toggleLabel={projectsOpen ? t("collapseSection") : t("expandSection")}
+              />
+              <CollapsibleMotionContent id={projectsContentID} open={projectsOpen}>
+                <div className="px-2 py-1 text-xs text-sidebar-foreground/55">{t("empty")}</div>
+              </CollapsibleMotionContent>
+            </SidebarGroup>
+          </Collapsible>
         </div>
         <ProjectDialog draft={draft} setDraft={setDraft} onOpenChange={(open) => !open && closeDraft()} onSubmit={commitDraft} />
       </>
@@ -678,31 +783,37 @@ export function NavProjects() {
   return (
     <>
       <div className="relative z-10 group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0">
-        <SidebarGroup>
-          <ProjectGroupHeader
-            title={t("title")}
-            createLabel={t("create")}
-            onCreate={() => setDraft({ name: "", systemPrompt: "" })}
-          />
-          <SidebarMenu>
-            {projects.map((project) => {
-              const expanded = expandedProjectIDs.has(project.publicID)
-              const conversationState = projectConversationState[project.publicID]
-              const conversationLoading = expanded && (!conversationState || conversationState.loading)
-              const hasActiveChild = Boolean(conversationState?.items.some((item) => item.publicID === activeConversationID))
-              const active =
-                ((pathname === "/recent" || pathname === "/chat") && activeProjectID === project.publicID) ||
-                activeConversationProjectID === project.publicID ||
-                hasActiveChild
-              const rowHovered = hoveredProjectRowID === project.publicID
-              const rowFocused = focusedProjectRowID === project.publicID
-              const createHovered = hoveredProjectCreateID === project.publicID
-              const menuHovered = hoveredProjectMenuID === project.publicID
-              const menuOpen = openProjectMenuID === project.publicID
-              const showProjectActions = rowHovered || rowFocused || menuHovered || menuOpen
-              const projectConversationContentID = `sidebar-project-${project.publicID}-conversations`
-              return (
-                <SidebarMenuItem key={project.publicID}>
+        <Collapsible open={projectsOpen} onOpenChange={setProjectsOpen}>
+          <SidebarGroup>
+            <ProjectGroupHeader
+              title={t("title")}
+              createLabel={t("create")}
+              contentID={projectsContentID}
+              open={projectsOpen}
+              onCreate={() => setDraft({ name: "", systemPrompt: "" })}
+              onOpenChange={setProjectsOpen}
+              toggleLabel={projectsOpen ? t("collapseSection") : t("expandSection")}
+            />
+            <CollapsibleMotionContent id={projectsContentID} open={projectsOpen}>
+              <SidebarMenu>
+                {projects.map((project) => {
+                  const expanded = expandedProjectIDs.has(project.publicID)
+                  const conversationState = projectConversationState[project.publicID]
+                  const conversationLoading = expanded && (!conversationState || conversationState.loading)
+                  const hasActiveChild = Boolean(conversationState?.items.some((item) => item.publicID === activeConversationID))
+                  const active =
+                    ((pathname === "/recent" || pathname === "/chat") && activeProjectID === project.publicID) ||
+                    activeConversationProjectID === project.publicID ||
+                    hasActiveChild
+                  const rowHovered = hoveredProjectRowID === project.publicID
+                  const rowFocused = focusedProjectRowID === project.publicID
+                  const createHovered = hoveredProjectCreateID === project.publicID
+                  const menuHovered = hoveredProjectMenuID === project.publicID
+                  const menuOpen = openProjectMenuID === project.publicID
+                  const showProjectActions = rowHovered || rowFocused || menuHovered || menuOpen
+                  const projectConversationContentID = `sidebar-project-${project.publicID}-conversations`
+                  return (
+                    <SidebarMenuItem key={project.publicID}>
                   <div
                     className="group/project-row relative"
                     onFocus={() => setFocusedProjectRowID(project.publicID)}
@@ -859,11 +970,13 @@ export function NavProjects() {
                       </motion.div>
                     ) : null}
                   </AnimatePresence>
-                </SidebarMenuItem>
-              )
-            })}
-          </SidebarMenu>
-        </SidebarGroup>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </CollapsibleMotionContent>
+          </SidebarGroup>
+        </Collapsible>
       </div>
 
       <ProjectDialog draft={draft} setDraft={setDraft} onOpenChange={(open) => !open && closeDraft()} onSubmit={commitDraft} />

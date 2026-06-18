@@ -635,11 +635,35 @@ func (s *Service) sendMessageInternal(
 		RecallChunks:   userCtx.RecallChunks,
 		Memories:       userCtx.Memory,
 	})
+	skillPrompts, err := s.resolveSkillPrompts(ctx, input)
+	if err != nil {
+		retErr = err
+		return nil, err
+	}
+	if traceRecorder != nil && skillPrompts != nil {
+		skillTitles := skillPromptTitles(skillPrompts.Skills)
+		traceRecorder.appendProcessSection(
+			fmt.Sprintf("已提供 %d 个 Skill 上下文", len(skillPrompts.Skills)),
+			formatTraceStep("Skill", fmt.Sprintf("本轮已加载 Skill：%s。包含 SKILL.md 内容，相关时使用。", strings.Join(skillTitles, "、"))),
+			map[string]interface{}{
+				processTracePayloadStage: map[string]interface{}{
+					"kind":   "skill_context",
+					"status": messageTraceStatusStreaming,
+				},
+				"skill_count":    len(skillPrompts.Skills),
+				"skill_ids":      skillPromptIDs(skillPrompts.Skills),
+				"skill_titles":   skillTitles,
+				"skill_triggers": skillPromptTriggers(skillPrompts.Skills),
+			},
+			messageTraceStatusStreaming,
+		)
+	}
 	toolRuntime := s.resolveSelectedToolRuntime(ctx, input.SelectedToolIDs)
 	promptPlan := buildPromptPlan(ctx, promptPlanInput{
 		BaseMessages:      llmMessages,
 		StableAttachments: stableFullContextAttachments,
 		DynamicContext:    userCtx,
+		SkillPrompts:      skillPrompts,
 		ToolRuntime:       toolRuntime,
 		Config:            cfg,
 		StoreProvider:     s.storeProvider,
@@ -675,6 +699,7 @@ func (s *Service) sendMessageInternal(
 		Options:        filteredOptions,
 	}
 	fullLLMMessages := llmMessages
+	applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &generateInput)
 	statefulContextConfig := buildPromptContextConfigSignature(cfg)
 	statefulContextState := buildPromptContextStateSignature(stableFullContextAttachments, prefixMemories)
 	statefulPrefixFingerprint := buildPromptStateFingerprint(promptStateFingerprintInput{
@@ -970,6 +995,7 @@ func (s *Service) sendMessageInternal(
 		_ = s.repo.UpdateConversationLastResponseID(ctx, input.ConversationID, "")
 		generateInput.PreviousResponseID = ""
 		generateInput.Messages = fullLLMMessages
+		applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &generateInput)
 		estimatedPromptTokens = estimatePromptTokens(fullLLMMessages)
 		initialPromptShape = summarizePromptShape("full_retry", generateInput.Messages, fullLLMMessages, "")
 		if traceRecorder != nil {
@@ -1078,12 +1104,14 @@ func (s *Service) sendMessageInternal(
 			followUpInput.Tools = nil
 			followUpInput.DisableTools = true
 			followUpInput.PreviousResponseID = ""
-		} else if routeConfig.Endpoint == llm.EndpointResponses && strings.TrimSpace(upstreamOutput.ResponseID) != "" {
+			applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &followUpInput)
+		} else if routeConfig.Endpoint == llm.EndpointResponses && supportsPreviousResponseIDRoute(route) && strings.TrimSpace(upstreamOutput.ResponseID) != "" {
 			followUpInput.PreviousResponseID = strings.TrimSpace(upstreamOutput.ResponseID)
 			followUpInput.Messages = []llm.Message{{Role: "tool", ToolResults: toolResult.ToolResults}}
 		} else {
 			followUpInput.Messages = llmMessages
 			followUpInput.PreviousResponseID = ""
+			applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &followUpInput)
 		}
 
 		nextOutput, nextErr := runGenerate(followUpInput)
@@ -1115,6 +1143,7 @@ func (s *Service) sendMessageInternal(
 		finalInput.Tools = nil
 		finalInput.DisableTools = true
 		finalInput.PreviousResponseID = ""
+		applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &finalInput)
 		nextOutput, nextErr := runGenerate(finalInput)
 		if handleCanceledGeneration(nextErr) {
 			return nil, retErr
@@ -1148,6 +1177,10 @@ func (s *Service) sendMessageInternal(
 		effectiveOutputTokens = estimateTokens(assistantText)
 	}
 
+	if toolRunFinalAnswerMissing(upstreamOutput, len(toolCallRows) > 0, llmCallCount, maxLLMCalls, remainingToolCalls) {
+		retErr = ErrToolRunFinalAnswerMissing
+		return nil, retErr
+	}
 	if strings.TrimSpace(assistantText) == "" {
 		retErr = ErrUpstreamEmptyResponse
 		return nil, retErr

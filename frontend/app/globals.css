@@ -1105,7 +1105,7 @@
 }
 
 :root[data-chat-font="mono"] {
-  --font-chat: var(--font-jetbrains-mono);
+  --font-chat: var(--font-jetbrains-mono, "JetBrains Mono", var(--font-mono));
 }
 
 :root[data-chat-font-weight="medium"] {
@@ -1139,6 +1139,13 @@
 }
 
 @layer utilities {
+  @media (hover: none), (pointer: coarse), (any-hover: none), (any-pointer: coarse) {
+    .chat-message-meta[data-hover-actions="true"] {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
   .text-\[8px\] {
     font-size: calc(8px * var(--ui-font-scale));
   }

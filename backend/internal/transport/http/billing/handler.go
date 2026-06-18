@@ -253,7 +253,7 @@ func (h *Handler) GetBillingAccount(c *gin.Context) {
 // @Failure 500 {object} ErrorDoc
 // @Router /admin/billing/accounts/{user_id}/balance [patch]
 func (h *Handler) UpdateBillingAccountBalance(c *gin.Context) {
-	targetUserID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	targetUserID, err := strconv.ParseUint(c.Param("user_id"), 10, strconv.IntSize)
 	if err != nil || targetUserID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid user id")
 		return
@@ -414,7 +414,7 @@ func writeRedemptionCodeError(c *gin.Context, err error) {
 // @Failure 500 {object} ErrorDoc
 // @Router /admin/billing/redemption-codes/{id}/code [get]
 func (h *Handler) RevealRedemptionCode(c *gin.Context) {
-	codeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	codeID, err := strconv.ParseUint(c.Param("id"), 10, strconv.IntSize)
 	if err != nil || codeID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid redemption code id")
 		return
@@ -455,7 +455,7 @@ func (h *Handler) RevealRedemptionCode(c *gin.Context) {
 // @Failure 500 {object} ErrorDoc
 // @Router /admin/billing/redemption-codes/{id} [patch]
 func (h *Handler) PatchRedemptionCode(c *gin.Context) {
-	codeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	codeID, err := strconv.ParseUint(c.Param("id"), 10, strconv.IntSize)
 	if err != nil || codeID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid redemption code id")
 		return
@@ -508,7 +508,7 @@ func (h *Handler) PatchRedemptionCode(c *gin.Context) {
 // @Failure 500 {object} ErrorDoc
 // @Router /admin/billing/redemption-codes/{id} [delete]
 func (h *Handler) DeleteRedemptionCode(c *gin.Context) {
-	codeID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	codeID, err := strconv.ParseUint(c.Param("id"), 10, strconv.IntSize)
 	if err != nil || codeID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid redemption code id")
 		return
@@ -648,7 +648,7 @@ func (h *Handler) GetBillingOverview(c *gin.Context) {
 // @Failure 500 {object} ErrorDoc
 // @Router /admin/billing/plans/{id} [patch]
 func (h *Handler) UpdatePlan(c *gin.Context) {
-	planID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	planID, err := strconv.ParseUint(c.Param("id"), 10, strconv.IntSize)
 	if err != nil || planID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid plan id")
 		return
