@@ -23,6 +23,11 @@ import {
 } from "@/shared/lib/artifact-preview";
 import { CopyActionButton } from "@/shared/components/copy-action";
 import { cn } from "@/lib/utils";
+import {
+  containsGFMTable,
+  containsMarkdownInlineFormatting,
+  containsMarkdownMath,
+} from "./streamdown-content";
 
 const CODE_BLOCK_COLLAPSE_LINE_THRESHOLD = 16;
 const DEFAULT_CODE_BLOCK_LANGUAGE = "markdown";
@@ -98,10 +103,15 @@ type MarkdownHTMLDetailsProps = React.DetailsHTMLAttributes<HTMLDetailsElement> 
   node?: unknown;
 };
 
+type MarkdownHTMLMarkdownRenderer = (source: string) => React.ReactNode;
+
 const StreamdownLinkContext = React.createContext(false);
 const FootnoteBackrefGroupContext = React.createContext(false);
+export const MarkdownHTMLMarkdownRendererContext = React.createContext<MarkdownHTMLMarkdownRenderer | null>(null);
 export const MarkdownImageActionsContext = React.createContext<MarkdownImageActions | null>(null);
 export const MarkdownArtifactActionsContext = React.createContext<MarkdownArtifactActions | null>(null);
+
+const INLINE_MARKDOWN_STRONG_RE = /(\*\*|__)([\s\S]+?)\1/g;
 
 const SAFE_HTML_STYLE_PROPERTIES: ReadonlySet<string> = new Set([
   "alignContent",
@@ -386,6 +396,134 @@ function getReactNodeText(node: React.ReactNode): string {
       return "";
     })
     .join("");
+}
+
+function getPlainReactNodeText(node: React.ReactNode): string | null {
+  let text = "";
+  let plain = true;
+
+  React.Children.forEach(node, (child) => {
+    if (!plain || child == null || typeof child === "boolean") {
+      return;
+    }
+
+    if (typeof child === "string" || typeof child === "number") {
+      text += String(child);
+      return;
+    }
+
+    if (React.isValidElement<{ children?: React.ReactNode }>(child) && child.type === React.Fragment) {
+      const fragmentText = getPlainReactNodeText(child.props.children);
+      if (fragmentText == null) {
+        plain = false;
+        return;
+      }
+      text += fragmentText;
+      return;
+    }
+
+    plain = false;
+  });
+
+  return plain ? text : null;
+}
+
+function normalizeHTMLMarkdownText(source: string): string {
+  const trimmedSource = source.replace(/^\n+|\n+$/g, "");
+  const indents = trimmedSource
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => line.match(/^[ \t]*/)?.[0].length ?? 0);
+  const minIndent = indents.length > 0 ? Math.min(...indents) : 0;
+
+  if (minIndent <= 0) {
+    return trimmedSource;
+  }
+
+  return trimmedSource
+    .split("\n")
+    .map((line) => (line.trim() ? line.slice(minIndent) : line))
+    .join("\n");
+}
+
+function renderInlineStrongMarkdownText(source: string): React.ReactNode {
+  if (!containsMarkdownInlineFormatting(source)) {
+    return source;
+  }
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  INLINE_MARKDOWN_STRONG_RE.lastIndex = 0;
+
+  while ((match = INLINE_MARKDOWN_STRONG_RE.exec(source)) !== null) {
+    const [raw, _delimiter, content] = match;
+    if (!content.trim()) {
+      continue;
+    }
+
+    if (match.index > cursor) {
+      nodes.push(source.slice(cursor, match.index));
+    }
+    nodes.push(
+      <strong
+        key={`strong-${match.index}`}
+        className="font-bold text-foreground"
+        style={{ fontWeight: "var(--font-chat-strong-weight)" }}
+      >
+        {content}
+      </strong>,
+    );
+    cursor = match.index + raw.length;
+  }
+
+  if (cursor === 0) {
+    return source;
+  }
+
+  if (cursor < source.length) {
+    nodes.push(source.slice(cursor));
+  }
+
+  return nodes;
+}
+
+function renderHTMLInlineMarkdownChildren(children: React.ReactNode): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (typeof child === "string" || typeof child === "number") {
+      return renderInlineStrongMarkdownText(String(child));
+    }
+
+    if (!React.isValidElement<{ children?: React.ReactNode }>(child)) {
+      return child;
+    }
+
+    if (!("children" in child.props)) {
+      return child;
+    }
+
+    const renderedChildren = renderHTMLInlineMarkdownChildren(child.props.children);
+    return React.cloneElement(child, undefined, renderedChildren);
+  });
+}
+
+function useHTMLMarkdownChildren(children: React.ReactNode): React.ReactNode {
+  const renderMarkdown = React.useContext(MarkdownHTMLMarkdownRendererContext);
+  const source = React.useMemo(() => getPlainReactNodeText(children), [children]);
+  const normalizedSource = React.useMemo(
+    () => (source == null ? "" : normalizeHTMLMarkdownText(source)),
+    [source],
+  );
+
+  if (!renderMarkdown || !normalizedSource.trim()) {
+    return renderHTMLInlineMarkdownChildren(children);
+  }
+
+  if (!containsGFMTable(normalizedSource) && !containsMarkdownMath(normalizedSource)) {
+    return renderHTMLInlineMarkdownChildren(children);
+  }
+
+  return renderMarkdown(normalizedSource);
 }
 
 function resolveFootnoteBackrefIndex(children: React.ReactNode, ariaLabel?: string): string {
@@ -679,7 +817,7 @@ export function CollapsibleCodePre({ children }: CollapsiblePreProps) {
   );
 }
 
-export function MarkdownLink({ children, className, href, onClick, ...props }: MarkdownLinkProps) {
+export function MarkdownLink({ children, className, href, onClick, style, ...props }: MarkdownLinkProps) {
   const t = useTranslations("chat.markdown");
   const [modalOpen, setModalOpen] = React.useState(false);
   const [pendingURL, setPendingURL] = React.useState("");
@@ -770,6 +908,7 @@ export function MarkdownLink({ children, className, href, onClick, ...props }: M
         data-streamdown="link"
         href={href}
         rel={linkKind === "external" ? "noreferrer" : props.rel}
+        style={sanitizeHTMLStyle(style)}
         target={linkKind === "external" ? "_blank" : undefined}
         onClick={(event) => void handleClick(event)}
       >
@@ -1016,49 +1155,55 @@ export function MarkdownStrong({ children, className, node: _node, style, ...pro
 }
 
 export function MarkdownHTMLDiv({ children, className, node: _node, style }: MarkdownHTMLBlockProps) {
+  const renderedChildren = useHTMLMarkdownChildren(children);
   return (
     <div className={cn("min-w-0 max-w-full", className)} style={sanitizeHTMLStyle(style)}>
-      {children}
+      {renderedChildren}
     </div>
   );
 }
 
 export function MarkdownHTMLSection({ children, className, node: _node, style }: MarkdownHTMLBlockProps) {
+  const renderedChildren = useHTMLMarkdownChildren(children);
   return (
     <section className={cn("min-w-0 max-w-full", className)} style={sanitizeHTMLStyle(style)}>
-      {children}
+      {renderedChildren}
     </section>
   );
 }
 
 export function MarkdownHTMLArticle({ children, className, node: _node, style }: MarkdownHTMLBlockProps) {
+  const renderedChildren = useHTMLMarkdownChildren(children);
   return (
     <article className={cn("min-w-0 max-w-full", className)} style={sanitizeHTMLStyle(style)}>
-      {children}
+      {renderedChildren}
     </article>
   );
 }
 
 export function MarkdownHTMLAside({ children, className, node: _node, style }: MarkdownHTMLBlockProps) {
+  const renderedChildren = useHTMLMarkdownChildren(children);
   return (
     <aside className={cn("min-w-0 max-w-full", className)} style={sanitizeHTMLStyle(style)}>
-      {children}
+      {renderedChildren}
     </aside>
   );
 }
 
 export function MarkdownHTMLMain({ children, className, node: _node, style }: MarkdownHTMLBlockProps) {
+  const renderedChildren = useHTMLMarkdownChildren(children);
   return (
     <main className={cn("min-w-0 max-w-full", className)} style={sanitizeHTMLStyle(style)}>
-      {children}
+      {renderedChildren}
     </main>
   );
 }
 
 export function MarkdownHTMLDetails({ children, className, node: _node, open, style }: MarkdownHTMLDetailsProps) {
+  const renderedChildren = useHTMLMarkdownChildren(children);
   return (
     <details className={cn("min-w-0 max-w-full", className)} open={open} style={sanitizeHTMLStyle(style)}>
-      {children}
+      {renderedChildren}
     </details>
   );
 }
