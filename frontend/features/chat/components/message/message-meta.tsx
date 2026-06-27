@@ -148,7 +148,7 @@ function BranchSwitcher({
   }
 
   return (
-    <div className="inline-flex items-center">
+    <div className="inline-flex items-center" data-screenshot-exclude="true">
       <button
         type="button"
         className="inline-flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground disabled:opacity-35"
@@ -226,6 +226,7 @@ function MetaIconButton({
       <TooltipTrigger asChild>
         <button
           type="button"
+          data-screenshot-exclude="true"
           className={cn(
             "inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40",
             className,
@@ -897,6 +898,7 @@ function QuickMemoryPin({ disabled }: { disabled?: boolean }) {
           <PopoverTrigger asChild>
             <button
               type="button"
+              data-screenshot-exclude="true"
               className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
               aria-label={t("rememberPreference")}
               disabled={disabled}

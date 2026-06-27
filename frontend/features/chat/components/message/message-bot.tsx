@@ -107,6 +107,7 @@ type ChatMessageBotProps = {
   artifactActions?: MarkdownArtifactActions;
   showBranchNavigator?: boolean;
   contentWidthClassName?: string;
+  screenshotMeta?: React.ReactNode;
 };
 
 export function ChatMessageBot({
@@ -133,6 +134,7 @@ export function ChatMessageBot({
   artifactActions,
   showBranchNavigator = true,
   contentWidthClassName = "max-w-[1080px]",
+  screenshotMeta,
 }: ChatMessageBotProps) {
   const tCommon = useTranslations("common.actions");
   const submitT = useTranslations("chat.submit");
@@ -341,6 +343,8 @@ export function ChatMessageBot({
           />
         </div>
       ) : null}
+
+      {screenshotMeta}
 
       <AssistantMessageMeta
         item={item}
