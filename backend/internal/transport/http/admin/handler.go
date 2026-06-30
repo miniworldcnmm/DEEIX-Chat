@@ -276,6 +276,7 @@ func (h *Handler) PatchUser(c *gin.Context) {
 			errors.Is(err, appbilling.ErrSubscriptionExpiryRequired),
 			errors.Is(err, appbilling.ErrInvalidSubscriptionExpiry),
 			errors.Is(err, user.ErrInvalidDisplayName),
+			errors.Is(err, user.ErrInvalidProfilePreferences),
 			errors.Is(err, appadmin.ErrEmptyAdminUserPatch):
 			response.ErrorFrom(c, http.StatusBadRequest, err)
 			return

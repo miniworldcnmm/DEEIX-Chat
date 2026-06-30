@@ -9,6 +9,8 @@ var (
 	ErrInvalidUsername = errors.New("invalid username")
 	// ErrInvalidDisplayName 显示名称格式非法。
 	ErrInvalidDisplayName = errors.New("invalid display name")
+	// ErrInvalidProfilePreferences 系统提示词超过允许长度。
+	ErrInvalidProfilePreferences = errors.New("invalid profile preferences")
 	// ErrInvalidPassword 密码不符合安全策略。
 	ErrInvalidPassword = errors.New("invalid password")
 	// ErrUserNotFound 用户不存在。

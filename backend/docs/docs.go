@@ -10075,7 +10075,7 @@ const docTemplate = `{
                 },
                 "profilePreferences": {
                     "type": "string",
-                    "maxLength": 1024
+                    "maxLength": 15000
                 },
                 "reason": {
                     "type": "string",
@@ -11475,7 +11475,7 @@ const docTemplate = `{
                 },
                 "profilePreferences": {
                     "type": "string",
-                    "maxLength": 1024
+                    "maxLength": 15000
                 },
                 "timezone": {
                     "type": "string",

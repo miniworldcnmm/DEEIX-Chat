@@ -52,6 +52,7 @@ import { TimeZoneSelect } from "@/shared/components/time-zone-select";
 import { cn } from "@/lib/utils";
 import { AdminDateTimePicker } from "@/features/admin/components/admin-date-time-picker";
 import type { UserDTO } from "@/shared/api/auth.types";
+import { SYSTEM_PROMPT_MAX_LENGTH } from "@/shared/model/system-prompt";
 import type { AdminUserRole, AdminUserStatus } from "@/features/admin/api/admin.types";
 import {
   COMPACT_COMBOBOX_CLASSNAME,
@@ -496,6 +497,7 @@ export function EditUserSheet({
                     setEditPayload((current) => ({ ...current, profilePreferences: event.target.value }))
                   }
                   disabled={pending}
+                  maxLength={SYSTEM_PROMPT_MAX_LENGTH}
                   placeholder={t("editor.preferencesPlaceholder")}
                   className="h-24 resize-none overflow-y-auto [field-sizing:fixed]"
                 />

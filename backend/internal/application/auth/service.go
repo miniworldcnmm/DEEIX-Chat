@@ -748,7 +748,10 @@ func (s *Service) UpdateProfile(ctx context.Context, userID uint, input UpdatePr
 		updateInput.Locale = &nextLocale
 	}
 	if input.ProfilePreferences != nil {
-		profilePreferences := strings.TrimSpace(*input.ProfilePreferences)
+		profilePreferences, err := userapp.NormalizeProfilePreferences(*input.ProfilePreferences)
+		if err != nil {
+			return nil, err
+		}
 		updateInput.ProfilePreferences = &profilePreferences
 	}
 	if input.AppearancePreferences != nil {

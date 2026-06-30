@@ -1093,6 +1093,10 @@ func (h *Handler) PatchMe(c *gin.Context) {
 			response.Error(c, http.StatusBadRequest, "invalid display name")
 			return
 		}
+		if errors.Is(err, user.ErrInvalidProfilePreferences) {
+			response.ErrorFrom(c, http.StatusBadRequest, err)
+			return
+		}
 		if errors.Is(err, appauth.ErrInvalidAppearancePreferences) {
 			response.Error(c, http.StatusBadRequest, "invalid appearance preferences")
 			return

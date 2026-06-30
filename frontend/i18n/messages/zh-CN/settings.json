@@ -36,8 +36,8 @@
       "displayNamePlaceholder": "界面中显示的名称",
       "displayNameInvalid": "显示名称需为 3-16 个字符。",
       "timezone": "时区",
-      "conversationPreferences": "对话偏好",
-      "conversationPreferencesPlaceholder": "偏好的风格、语言习惯、输出格式和常用工作流。"
+      "conversationPreferences": "系统提示词",
+      "conversationPreferencesPlaceholder": "应用于你的所有对话；具体项目的系统提示词优先。"
     },
     "username": {
       "invalid": "用户名需为 3-16 位小写字母、数字、下划线或短横线，且不能使用保留名称。",

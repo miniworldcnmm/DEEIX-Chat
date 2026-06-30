@@ -7,12 +7,13 @@ import (
 )
 
 const (
-	UsernameMinLength    = 3
-	UsernameMaxLength    = 16
-	DisplayNameMinLength = 3
-	DisplayNameMaxLength = 16
-	PasswordMinLength    = 8
-	PasswordMaxLength    = 128
+	UsernameMinLength           = 3
+	UsernameMaxLength           = 16
+	DisplayNameMinLength        = 3
+	DisplayNameMaxLength        = 16
+	ProfilePreferencesMaxLength = 15000
+	PasswordMinLength           = 8
+	PasswordMaxLength           = 128
 )
 
 var reservedUsernames = map[string]struct{}{
@@ -63,6 +64,14 @@ func NormalizeGeneratedDisplayName(raw string) string {
 		runes = append(runes, '_')
 	}
 	return string(runes)
+}
+
+func NormalizeProfilePreferences(raw string) (string, error) {
+	profilePreferences := strings.TrimSpace(raw)
+	if utf8.RuneCountInString(profilePreferences) > ProfilePreferencesMaxLength {
+		return "", ErrInvalidProfilePreferences
+	}
+	return profilePreferences, nil
 }
 
 func NormalizePassword(raw string) (string, error) {

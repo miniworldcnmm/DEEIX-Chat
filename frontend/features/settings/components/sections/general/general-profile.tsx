@@ -15,6 +15,7 @@ import type { ProfileDraft } from "@/features/settings/types/settings";
 import { DISPLAY_NAME_MAX_LENGTH, USERNAME_MAX_LENGTH } from "@/shared/auth/account-policy";
 import type { UserDTO } from "@/shared/api/auth.types";
 import { SettingsSection } from "@/shared/components/settings-layout";
+import { SYSTEM_PROMPT_MAX_LENGTH } from "@/shared/model/system-prompt";
 import { TimeZoneSelect } from "@/shared/components/time-zone-select";
 
 export function GeneralProfileSection({
@@ -147,7 +148,7 @@ export function GeneralProfileSection({
           <Field>
             <FieldLabel>{t("generalPage.profile.conversationPreferences")}</FieldLabel>
             <Textarea
-              maxLength={1024}
+              maxLength={SYSTEM_PROMPT_MAX_LENGTH}
               value={draft.profilePreferences}
               onChange={(event) =>
                 onDraftChange((current) => ({ ...current, profilePreferences: event.target.value }))
