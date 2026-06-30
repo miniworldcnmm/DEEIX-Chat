@@ -29,6 +29,8 @@ type UseSettingsChatResult = {
   handleBool: (key: string, field: keyof ChatSettings) => (checked: boolean) => void;
   handleEnum: (key: string, field: keyof ChatSettings) => (value: string) => void;
   handleDefaultModel: (value: string) => void;
+  handleDefaultTemperature: (value: number) => void;
+  handleDefaultReasoningEffort: (value: string) => void;
 };
 
 export function useSettingsChat(): UseSettingsChatResult {
@@ -131,6 +133,28 @@ export function useSettingsChat(): UseSettingsChatResult {
     [persistSetting],
   );
 
+  const handleDefaultTemperature = React.useCallback(
+    (value: number) => {
+      const serialized = Number.isFinite(value) ? String(value) : "1";
+      setSettings((previous) => {
+        persistSetting("chat.default_temperature", "defaultTemperature", serialized, previous.defaultTemperature);
+        return { ...previous, defaultTemperature: value };
+      });
+    },
+    [persistSetting],
+  );
+
+  const handleDefaultReasoningEffort = React.useCallback(
+    (value: string) => {
+      const normalized = value === "default" ? "" : value;
+      setSettings((previous) => {
+        persistSetting("chat.default_reasoning_effort", "defaultReasoningEffort", normalized, previous.defaultReasoningEffort);
+        return { ...previous, defaultReasoningEffort: normalized };
+      });
+    },
+    [persistSetting],
+  );
+
   return {
     settings,
     loading,
@@ -140,5 +164,7 @@ export function useSettingsChat(): UseSettingsChatResult {
     handleBool,
     handleEnum,
     handleDefaultModel,
+    handleDefaultTemperature,
+    handleDefaultReasoningEffort,
   };
 }

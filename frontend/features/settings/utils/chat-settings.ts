@@ -25,6 +25,9 @@ export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
   inputHeight: "standard",
   contentWidth: "compact",
   fileMode: "auto",
+  defaultThinkingEnabled: true,
+  defaultTemperature: 1,
+  defaultReasoningEffort: "",
 };
 
 export function parseChatSettings(map: UserSettingsMap): ChatSettings {
@@ -50,7 +53,35 @@ export function parseChatSettings(map: UserSettingsMap): ChatSettings {
     inputHeight: INPUT_HEIGHTS.includes(inputHeight as ChatInputHeight) ? (inputHeight as ChatInputHeight) : "standard",
     contentWidth: parseChatContentWidth(contentWidth),
     fileMode: FILE_MODES.includes(fileMode as FileMode) ? (fileMode as FileMode) : "auto",
+    defaultThinkingEnabled: map["chat.default_thinking_enabled"] !== "false",
+    defaultTemperature: parseDefaultTemperature(map["chat.default_temperature"]),
+    defaultReasoningEffort: parseDefaultReasoningEffort(map["chat.default_reasoning_effort"]),
   };
+}
+
+function parseDefaultTemperature(raw: string | undefined): number {
+  if (!raw) {
+    return 1;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+  if (parsed < 0 || parsed > 2) {
+    return 1;
+  }
+  return parsed;
+}
+
+function parseDefaultReasoningEffort(raw: string | undefined): string {
+  if (!raw) {
+    return "";
+  }
+  const trimmed = raw.trim();
+  if (trimmed === "default") {
+    return "";
+  }
+  return trimmed;
 }
 
 export function parseSendShortcut(value: string | undefined): SendShortcut {

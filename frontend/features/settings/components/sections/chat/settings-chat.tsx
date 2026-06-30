@@ -59,6 +59,69 @@ type ModelOption = ModelSelectOption;
 
 const SYSTEM_RECOMMENDED_MODEL = "none";
 
+const DEFAULT_REASONING_EFFORT_OPTIONS = ["default", "low", "medium", "high", "xhigh", "max"] as const;
+const CUSTOM_REASONING_EFFORT_VALUE = "__custom__";
+
+function ReasoningEffortSelect({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const t = useTranslations("settings.chatPage.defaultModelParams");
+  const isCustom = value !== "" && !(DEFAULT_REASONING_EFFORT_OPTIONS as readonly string[]).includes(value);
+  const selectValue = isCustom ? CUSTOM_REASONING_EFFORT_VALUE : value === "" ? "default" : value;
+  const [customDraft, setCustomDraft] = React.useState(value);
+
+  React.useEffect(() => {
+    setCustomDraft(value);
+  }, [value]);
+
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <Select
+        value={selectValue}
+        onValueChange={(next) => {
+          if (next === CUSTOM_REASONING_EFFORT_VALUE) {
+            onChange(customDraft.trim() === "" ? "" : customDraft.trim());
+            return;
+          }
+          onChange(next);
+        }}
+        disabled={disabled}
+      >
+        <SelectTrigger size="sm" className="w-40 text-left">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent align="start">
+          <SelectItem value="default">{t("effortDefault")}</SelectItem>
+          {DEFAULT_REASONING_EFFORT_OPTIONS.filter((v) => v !== "default").map((v) => (
+            <SelectItem key={v} value={v}>
+              {t(`effort_${v}`)}
+            </SelectItem>
+          ))}
+          <SelectItem value={CUSTOM_REASONING_EFFORT_VALUE}>{t("effortCustom")}</SelectItem>
+        </SelectContent>
+      </Select>
+      {isCustom ? (
+        <Input
+          value={customDraft}
+          onChange={(event) => {
+            setCustomDraft(event.target.value);
+            onChange(event.target.value.trim());
+          }}
+          disabled={disabled}
+          placeholder={t("effortCustomPlaceholder")}
+          className="w-40"
+        />
+      ) : null}
+    </div>
+  );
+}
+
 // Preference memory section.
 
 const MAX_PREFERENCES = 20;
@@ -426,6 +489,8 @@ export function SettingsChat() {
     handleBool,
     handleEnum,
     handleDefaultModel,
+    handleDefaultTemperature,
+    handleDefaultReasoningEffort,
   } = useSettingsChat();
   const billingEnabled = billingMode !== "self";
   const chatFont = useChatFontPreference();
@@ -508,6 +573,54 @@ export function SettingsChat() {
               />
             </SettingsFieldRow>
           </div>
+        </SettingsFieldList>
+      </SettingsSection>
+
+      <SettingsSectionSeparator />
+
+      <SettingsSection title={t("defaultModelParams.sectionTitle")}>
+        <SettingsFieldList>
+          <SettingsFieldRow
+            title={t("defaultModelParams.thinkingEnabledTitle")}
+            description={t("defaultModelParams.thinkingEnabledDescription")}
+          >
+            <Switch
+              checked={settings.defaultThinkingEnabled}
+              onCheckedChange={handleBool("chat.default_thinking_enabled", "defaultThinkingEnabled")}
+              disabled={loading}
+              aria-label={t("defaultModelParams.thinkingEnabledTitle")}
+            />
+          </SettingsFieldRow>
+          <SettingsFieldRow
+            title={t("defaultModelParams.temperatureTitle")}
+            description={t("defaultModelParams.temperatureDescription")}
+          >
+            <Input
+              type="number"
+              min={0}
+              max={2}
+              step={0.1}
+              value={settings.defaultTemperature}
+              onChange={(event) => {
+                const parsed = Number(event.target.value);
+                if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 2) {
+                  handleDefaultTemperature(parsed);
+                }
+              }}
+              disabled={loading}
+              className="w-24"
+            />
+          </SettingsFieldRow>
+          <SettingsFieldRow
+            title={t("defaultModelParams.reasoningEffortTitle")}
+            description={t("defaultModelParams.reasoningEffortDescription")}
+          >
+            <ReasoningEffortSelect
+              value={settings.defaultReasoningEffort}
+              onChange={handleDefaultReasoningEffort}
+              disabled={loading}
+            />
+          </SettingsFieldRow>
         </SettingsFieldList>
       </SettingsSection>
 

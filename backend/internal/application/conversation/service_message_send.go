@@ -700,12 +700,16 @@ func (s *Service) sendMessageInternal(
 		AttributionReferer:  attributionReferer,
 		AttributionTitle:    attributionTitle,
 	}
-	filteredOptions = filterModelOptions(input.Options, route.Protocol, modelOptionPolicyConfig{
-		Mode:                  cfg.ModelOptionPolicyMode,
-		AllowedPathsJSON:      cfg.ModelOptionAllowedPaths,
-		DeniedPathsJSON:       cfg.ModelOptionDeniedPaths,
-		ModelCapabilitiesJSON: route.ModelCapabilitiesJSON,
-	})
+	filteredOptions = filterModelOptions(
+		s.mergeUserModelDefaults(ctx, input.UserID, conversation.Model, input.Options, route.Protocol),
+		route.Protocol,
+		modelOptionPolicyConfig{
+			Mode:                  cfg.ModelOptionPolicyMode,
+			AllowedPathsJSON:      cfg.ModelOptionAllowedPaths,
+			DeniedPathsJSON:       cfg.ModelOptionDeniedPaths,
+			ModelCapabilitiesJSON: route.ModelCapabilitiesJSON,
+		},
+	)
 	generateInput := llm.GenerateInput{
 		RequestID:      strings.TrimSpace(input.RequestID),
 		ConversationID: input.ConversationID,

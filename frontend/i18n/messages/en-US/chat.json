@@ -455,6 +455,15 @@
       "google": "Google native tools"
     }
   },
+  "modelDefault": {
+    "saveAsDefault": "Save as model default",
+    "clearDefault": "Clear model default",
+    "badgeSaved": "Default set",
+    "saveSuccess": "Saved default config for {name}",
+    "saveFailed": "Failed to save default config",
+    "clearSuccess": "Cleared default config for {name}",
+    "clearFailed": "Failed to clear default config"
+  },
   "modelPicker": {
     "selectModel": "Select model",
     "empty": "No models",

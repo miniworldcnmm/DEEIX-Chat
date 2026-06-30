@@ -455,6 +455,15 @@
       "google": "Google 原生工具"
     }
   },
+  "modelDefault": {
+    "saveAsDefault": "设为该模型默认",
+    "clearDefault": "清除该模型默认",
+    "badgeSaved": "已设默认",
+    "saveSuccess": "已保存 {name} 的默认配置",
+    "saveFailed": "保存默认配置失败",
+    "clearSuccess": "已清除 {name} 的默认配置",
+    "clearFailed": "清除默认配置失败"
+  },
   "modelPicker": {
     "selectModel": "选择模型",
     "empty": "暂无模型",

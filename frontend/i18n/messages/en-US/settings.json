@@ -347,6 +347,23 @@
       "autoTitle": "Auto-generate titles",
       "autoTitleDescription": "When disabled, new chats use the first 16 characters of the first message as the title."
     },
+    "defaultModelParams": {
+      "sectionTitle": "Default model parameters",
+      "thinkingEnabledTitle": "Enable thinking by default",
+      "thinkingEnabledDescription": "Enable thinking/reasoning when sending messages in new chats. Disabling clears all thinking-related parameters.",
+      "temperatureTitle": "Default temperature",
+      "temperatureDescription": "Range 0-2, default 1. Only affects models without a per-model override.",
+      "reasoningEffortTitle": "Default thinking effort",
+      "reasoningEffortDescription": "Choose \"Default\" to leave the effort unset and let the model decide. Only affects models without a per-model override.",
+      "effortDefault": "Default",
+      "effort_low": "Low",
+      "effort_medium": "Medium",
+      "effort_high": "High",
+      "effort_xhigh": "Extra high",
+      "effort_max": "Max",
+      "effortCustom": "Custom",
+      "effortCustomPlaceholder": "Enter custom thinking effort"
+    },
     "input": {
       "sectionTitle": "Input and sending",
       "shortcutTitle": "Send shortcut",
