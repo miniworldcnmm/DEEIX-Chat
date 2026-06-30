@@ -336,7 +336,7 @@ definitions:
         maxLength: 32
         type: string
       profilePreferences:
-        maxLength: 1024
+        maxLength: 15000
         type: string
       reason:
         maxLength: 255
@@ -1267,7 +1267,7 @@ definitions:
         maxLength: 16
         type: string
       profilePreferences:
-        maxLength: 1024
+        maxLength: 15000
         type: string
       timezone:
         maxLength: 64

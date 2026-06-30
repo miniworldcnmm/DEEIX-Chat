@@ -273,7 +273,7 @@ type PatchMeRequest struct {
 	DisplayName           *string `json:"displayName" binding:"omitempty,min=3,max=16"`
 	Timezone              *string `json:"timezone" binding:"omitempty,max=64"`
 	Locale                *string `json:"locale" binding:"omitempty,max=16"`
-	ProfilePreferences    *string `json:"profilePreferences" binding:"omitempty,max=1024"`
+	ProfilePreferences    *string `json:"profilePreferences" binding:"omitempty,max=15000"`
 	AppearancePreferences *string `json:"appearancePreferences" binding:"omitempty,max=2048"`
 }
 

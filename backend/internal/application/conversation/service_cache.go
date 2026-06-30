@@ -83,6 +83,24 @@ func (s *Service) getUserSettingCached(ctx context.Context, userID uint, key str
 	return val, nil
 }
 
+// getUserSettingsCached 批量读取多个用户设置 key，未命中的 key 单独回退到 DB 查询。
+func (s *Service) getUserSettingsCached(ctx context.Context, userID uint, keys []string) map[string]string {
+	result := make(map[string]string, len(keys))
+	for _, key := range keys {
+		val, err := s.getUserSettingCached(ctx, userID, key)
+		if err == nil {
+			result[key] = val
+		}
+	}
+	return result
+}
+
+// InvalidateUserSettingCache 删除指定用户指定 key 的用户设置缓存，供 usersettings.Service 在写完后回调。
+func (s *Service) InvalidateUserSettingCache(userID uint, key string) {
+	cacheKey := fmt.Sprintf("%d:%s", userID, key)
+	s.userSettingCache.Delete(cacheKey)
+}
+
 // getCachedUserMemories 从内存缓存读取用户长期记忆，未命中时回退到 DB 查询。
 func (s *Service) getCachedUserMemories(ctx context.Context, userID uint) ([]domainmemory.UserMemory, error) {
 	if v, ok := s.userMemCache.Load(userID); ok {

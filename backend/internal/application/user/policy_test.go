@@ -1,6 +1,9 @@
 package user
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNormalizeUsernamePolicy(t *testing.T) {
 	if got, err := NormalizeUsername(" Alice_01 "); err != nil || got != "alice_01" {
@@ -35,5 +38,19 @@ func TestNormalizePasswordPolicy(t *testing.T) {
 		if _, err := NormalizePassword(raw); err == nil {
 			t.Fatalf("expected password %q to be rejected", raw)
 		}
+	}
+}
+
+func TestNormalizeProfilePreferencesPolicy(t *testing.T) {
+	if got, err := NormalizeProfilePreferences("  answer concisely  "); err != nil || got != "answer concisely" {
+		t.Fatalf("expected normalized profile preferences, got %q err=%v", got, err)
+	}
+
+	if got, err := NormalizeProfilePreferences(strings.Repeat("中", ProfilePreferencesMaxLength)); err != nil || len([]rune(got)) != ProfilePreferencesMaxLength {
+		t.Fatalf("expected %d characters to be accepted, got %d err=%v", ProfilePreferencesMaxLength, len([]rune(got)), err)
+	}
+
+	if _, err := NormalizeProfilePreferences(strings.Repeat("中", ProfilePreferencesMaxLength+1)); err == nil {
+		t.Fatalf("expected %d characters to be rejected", ProfilePreferencesMaxLength+1)
 	}
 }

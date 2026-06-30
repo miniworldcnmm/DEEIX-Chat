@@ -796,7 +796,10 @@ func (s *Service) PatchUserByAdmin(
 	}
 
 	if req.ProfilePreferences != nil {
-		nextProfilePreferences := strings.TrimSpace(*req.ProfilePreferences)
+		nextProfilePreferences, normalizeErr := userapp.NormalizeProfilePreferences(*req.ProfilePreferences)
+		if normalizeErr != nil {
+			return nil, normalizeErr
+		}
 		if nextProfilePreferences != targetUser.ProfilePreferences {
 			updateInput.ProfilePreferences = &nextProfilePreferences
 			auditDetail["from_profile_preferences"] = targetUser.ProfilePreferences

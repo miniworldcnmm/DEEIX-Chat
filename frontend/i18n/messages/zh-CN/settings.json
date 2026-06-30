@@ -36,8 +36,8 @@
       "displayNamePlaceholder": "界面中显示的名称",
       "displayNameInvalid": "显示名称需为 3-16 个字符。",
       "timezone": "时区",
-      "conversationPreferences": "对话偏好",
-      "conversationPreferencesPlaceholder": "偏好的风格、语言习惯、输出格式和常用工作流。"
+      "conversationPreferences": "系统提示词",
+      "conversationPreferencesPlaceholder": "应用于你的所有对话；具体项目的系统提示词优先。"
     },
     "username": {
       "invalid": "用户名需为 3-16 位小写字母、数字、下划线或短横线，且不能使用保留名称。",
@@ -346,6 +346,23 @@
       "systemRecommended": "系统默认",
       "autoTitle": "自动生成标题",
       "autoTitleDescription": "关闭后，新对话使用第一条消息的前 16 个字符作为标题。"
+    },
+    "defaultModelParams": {
+      "sectionTitle": "默认模型参数",
+      "thinkingEnabledTitle": "默认开启思考",
+      "thinkingEnabledDescription": "新会话发消息时默认开启思考/推理。关闭后将清除所有思考相关参数。",
+      "temperatureTitle": "默认温度",
+      "temperatureDescription": "数值范围 0~2，默认 1。仅影响未单独配置的模型。",
+      "reasoningEffortTitle": "默认思考等级",
+      "reasoningEffortDescription": "选择\"默认\"表示不设置思考等级，由模型自行决定。仅影响未单独配置的模型。",
+      "effortDefault": "默认",
+      "effort_low": "低",
+      "effort_medium": "中",
+      "effort_high": "高",
+      "effort_xhigh": "超高",
+      "effort_max": "最大",
+      "effortCustom": "自定义",
+      "effortCustomPlaceholder": "输入自定义思考等级"
     },
     "input": {
       "sectionTitle": "输入与发送",

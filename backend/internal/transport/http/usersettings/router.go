@@ -7,4 +7,9 @@ func (m *Module) RegisterRoutes(authGroup *gin.RouterGroup) {
 	g := authGroup.Group("/user/settings")
 	g.GET("", m.Handler.GetSettings)
 	g.PATCH("", m.Handler.PatchSettings)
+
+	mo := g.Group("/model-options")
+	mo.GET("", m.Handler.ListUserModelOptions)
+	mo.PUT("/:platformModelName", m.Handler.UpsertUserModelOption)
+	mo.DELETE("/:platformModelName", m.Handler.DeleteUserModelOption)
 }

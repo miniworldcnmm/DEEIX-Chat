@@ -44,7 +44,7 @@ type PatchUserRequest struct {
 	Status                *string    `json:"status" binding:"omitempty,max=32"`
 	Timezone              *string    `json:"timezone" binding:"omitempty,max=64"`
 	Locale                *string    `json:"locale" binding:"omitempty,max=16"`
-	ProfilePreferences    *string    `json:"profilePreferences" binding:"omitempty,max=1024"`
+	ProfilePreferences    *string    `json:"profilePreferences" binding:"omitempty,max=15000"`
 	SubscriptionTier      *string    `json:"subscriptionTier" binding:"omitempty,max=32"`
 	SubscriptionExpiresAt *time.Time `json:"subscriptionExpiresAt"`
 	Reason                string     `json:"reason" binding:"max=255"`

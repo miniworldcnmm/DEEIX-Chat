@@ -42,6 +42,7 @@ The system is designed around simple deployment, efficient static delivery, and 
 | Files and retrieval | File upload, preview, extraction, OCR, storage quota, full-context injection, chunking, embeddings, and semantic retrieval so file content can naturally enter the conversation context. |
 | Tool ecosystem | MCP servers and provider-native official tools with discovery, enablement, user selection, execution limits, result rendering, and tool-call traceability. |
 | Context and memory | Message windows, token budgets, summary compression, conversation memory, long-term memory, and RAG evidence records for controlled-cost continuity. |
+| Personalization | Personal system prompts let users configure global conversation instructions up to 15000 characters in personal settings; project system prompts take higher priority for team or scenario-level constraints. |
 | Billing and payments | Model pricing, per-call tool pricing, subscriptions, top-ups, balances, usage ledgers, billing snapshots, Stripe Checkout, EPay, and webhook validation. |
 | Identity and security | Local accounts, session management, HttpOnly refresh cookies, 2FA/TOTP, trusted devices, SSO/OIDC/OAuth, contact verification, and encrypted sensitive data. |
 | Administration and audit | Centralized management for users, roles, upstreams, models, routes, pricing, subscriptions, balances, usage logs, audit logs, auth events, and system events. |
@@ -398,6 +399,7 @@ Authentication, registration, conversation settings, model option policies, file
 - Upstream API keys, SSO client secrets, MCP auth tokens, sensitive settings, and TOTP secrets are encrypted with AES-GCM using `DATA_ENCRYPTION_KEY`.
 - Access tokens are short-lived and held client-side in memory; refresh tokens are issued through HttpOnly cookies.
 - User-supplied model options are filtered before provider requests. System-generated fields such as model, messages, tools, system prompts, headers, and previous-response identifiers are not user-overridable.
+- Personal system prompts are limited to 15000 characters and are injected only as user-level global instructions. Platform, model, and project system prompts have higher priority, and project system prompts take precedence over personal system prompts.
 
 ## Documentation
 

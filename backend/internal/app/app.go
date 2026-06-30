@@ -272,6 +272,7 @@ func NewApp() (*App, error) {
 	adminModule := adminhttp.NewModule(adminHandler)
 	userSettingsRepo := usersettingsrepo.NewRepo(db)
 	userSettingsService := usersettings.NewService(userSettingsRepo)
+	userSettingsService.SetUserSettingCacheInvalidator(conversationService.InvalidateUserSettingCache)
 	userSettingsHandler := usersettingshttp.NewHandler(userSettingsService)
 	userSettingsModule := usersettingshttp.NewModule(userSettingsHandler)
 	announcementRepo := announcementrepo.NewRepo(db)

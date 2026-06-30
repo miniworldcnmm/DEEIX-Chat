@@ -31,6 +31,11 @@ import {
   isReservedConversationOptionKey,
   sanitizeConversationOptions,
 } from "@/features/chat/model/conversation-options";
+import {
+  resolveUserModelVisualFields,
+  userModelOptionPayloadFromFields,
+  type UserModelVisualFieldID,
+} from "@/features/chat/model/user-model-visual-defaults";
 import { cn } from "@/lib/utils";
 import type { ModelOptionControl } from "@/features/chat/types/chat-runtime";
 import type { ConversationOptions } from "@/shared/api/conversation.types";
@@ -38,6 +43,15 @@ import { JsonCodeEditor } from "@/shared/components/json-code-editor";
 import type { ModelNativeToolConfig, ModelOptionPolicy, NativeToolDefinition } from "@/shared/lib/model-option-policy";
 import { isModelOptionPathFiltered, resolveModelOptionPolicyProtocol } from "@/shared/lib/model-option-policy";
 import { localizedNativeToolText } from "@/shared/lib/native-tool-i18n";
+import { resolveAccessToken } from "@/shared/auth/resolve-access-token";
+import {
+  deleteUserModelOption,
+  getUserSettings,
+  listUserModelOptions,
+  upsertUserModelOption,
+  type UserModelOptionsMap,
+  type UserSettingsMap,
+} from "@/shared/api/user-settings";
 
 type EditableOptionValue = string | number | boolean | null;
 type VisualOptionKind = "boolean" | "number" | "select" | "text";
@@ -51,6 +65,9 @@ type VisualOption = {
   kind?: VisualOptionKind;
   selectValues?: string[];
   placeholder?: string;
+  min?: number;
+  max?: number;
+  step?: number;
   active: boolean;
   editable: boolean;
   locked?: boolean;
@@ -770,6 +787,24 @@ function optionPathFromControl(path: string): string[] {
     .filter(Boolean);
 }
 
+function userModelVisualFieldID(path: string[]): UserModelVisualFieldID | null {
+  switch (optionPathKey(path)) {
+    case "enable_thinking":
+    case "thinking.type":
+      return "thinking_enabled";
+    case "temperature":
+    case "generationConfig.temperature":
+      return "temperature";
+    case "reasoning_effort":
+    case "effort":
+    case "reasoning.effort":
+    case "generationConfig.thinkingConfig.thinkingLevel":
+      return "reasoning_effort";
+    default:
+      return null;
+  }
+}
+
 function resolveControlEditableValue(options: ConversationOptions, path: string[]): EditableOptionValue {
   const currentValue = getOptionAtPath(options, path);
   if (isEditableOptionValue(currentValue)) {
@@ -854,16 +889,18 @@ function hasVisualConfigurationContent({
 }
 
 function resolveOptionTitle(key: string, configuredLabel: string | undefined, translate: OptionTranslationResolver): string {
-  const translationKey = key.replaceAll(".", "__");
-  if (OPTION_LABEL_KEYS.has(key) && translate.has?.(translationKey)) {
+  const localizedKey = key === "generationConfig.temperature" ? "temperature" : key;
+  const translationKey = localizedKey.replaceAll(".", "__");
+  if (OPTION_LABEL_KEYS.has(localizedKey) && translate.has?.(translationKey)) {
     return translate(translationKey);
   }
   return configuredLabel?.trim() || key;
 }
 
 function resolveOptionDescription(key: string, description: string | undefined, translate: OptionTranslationResolver): string {
-  const translationKey = key.replaceAll(".", "__");
-  if (OPTION_DESCRIPTION_KEYS.has(key) && translate.has?.(translationKey)) {
+  const localizedKey = key === "generationConfig.temperature" ? "temperature" : key;
+  const translationKey = localizedKey.replaceAll(".", "__");
+  if (OPTION_DESCRIPTION_KEYS.has(localizedKey) && translate.has?.(translationKey)) {
     return translate(translationKey);
   }
   return description?.trim() || "";
@@ -996,6 +1033,7 @@ export function ChatModelConfig({
   const tComposer = useTranslations("chat.composer");
   const tOptionLabels = useTranslations("chat.optionLabels");
   const tOptionDescriptions = useTranslations("chat.optionDescriptions");
+  const tModelDefault = useTranslations("chat.modelDefault");
   const messages = useMessages();
   const [hovered, setHovered] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -1004,9 +1042,23 @@ export function ChatModelConfig({
   const [mobileView, setMobileView] = React.useState<"json" | "visual">("visual");
   const [defaultRestorePending, setDefaultRestorePending] = React.useState(false);
   const [restoredDefaultOptions, setRestoredDefaultOptions] = React.useState<ConversationOptions | null>(null);
+  const [userSettings, setUserSettings] = React.useState<UserSettingsMap>({});
+  const [userModelOptions, setUserModelOptions] = React.useState<UserModelOptionsMap>({});
+  const [modelOptionSaving, setModelOptionSaving] = React.useState(false);
   const optionsObjectRef = React.useRef<ConversationOptions>({});
   const effectiveDefaultOptions = restoredDefaultOptions ?? defaultOptions;
+  const selectedProtocolKey = resolveModelOptionPolicyProtocol(selectedProtocol);
   const selectedProtocolLabel = selectedProtocol ? resolveProtocolLabel(selectedProtocol) : "";
+  const userModelVisualFields = React.useMemo(
+    () => resolveUserModelVisualFields({
+      protocol: selectedProtocolKey,
+      explicitOptions: optionsObject,
+      platformDefaultOptions: effectiveDefaultOptions,
+      userSettings,
+      modelOption: userModelOptions[selectedModelName.trim()] ?? {},
+    }),
+    [effectiveDefaultOptions, optionsObject, selectedModelName, selectedProtocolKey, userModelOptions, userSettings],
+  );
   const nativeToolVisualOptions = React.useMemo(
     () => nativeToolDefinitionsFromConfigs(nativeTools, nativeToolKeys, modelOptionPolicy?.nativeTools ?? [], selectedProtocol),
     [modelOptionPolicy?.nativeTools, nativeToolKeys, nativeTools, selectedProtocol],
@@ -1039,10 +1091,46 @@ export function ChatModelConfig({
       options: nativeToolVisualOptions,
     };
   }, [nativeToolVisualOptions, tComposer]);
-  const visibleOptions = React.useMemo(
-    () => [...configuredOptions, ...editableOptions],
-    [configuredOptions, editableOptions],
-  );
+  const visibleOptions = React.useMemo(() => {
+    const fieldsByID = new Map(userModelVisualFields.map((field) => [field.id, field]));
+    const existingOptions = [...configuredOptions, ...editableOptions].map((option) => {
+      const fieldID = userModelVisualFieldID(option.path);
+      const field = fieldID ? fieldsByID.get(fieldID) : undefined;
+      if (!field || option.active) {
+        return fieldID === "thinking_enabled"
+          ? { ...option, forcedFilterStatus: option.active ? "passed" as const : "inactive" as const }
+          : option;
+      }
+      return {
+        ...option,
+        value: field.value,
+        kind: option.kind ?? field.kind,
+        selectValues: option.selectValues ?? field.options,
+        min: field.min,
+        max: field.max,
+        step: field.step,
+      };
+    });
+    const existingFieldIDs = new Set(
+      existingOptions.map((option) => userModelVisualFieldID(option.path)).filter(Boolean),
+    );
+    const fallbackOptions = userModelVisualFields
+      .filter((field) => !existingFieldIDs.has(field.id))
+      .map((field): VisualOption => ({
+        key: optionPathKey(field.path),
+        path: field.path,
+        value: field.value,
+        active: field.active,
+        editable: true,
+        kind: field.kind,
+        selectValues: field.options,
+        min: field.min,
+        max: field.max,
+        step: field.step,
+        forcedFilterStatus: field.id === "thinking_enabled" ? (field.active ? "passed" : "inactive") : undefined,
+      }));
+    return [...existingOptions, ...fallbackOptions].sort((left, right) => compareOptionKeys(left.key, right.key));
+  }, [configuredOptions, editableOptions, userModelVisualFields]);
   const lockedOptionPathSet = React.useMemo(() => new Set(lockedOptionPaths), [lockedOptionPaths]);
   const hasRecognizedOptions = Boolean(nativeToolGroup) || visibleOptions.length > 0;
 
@@ -1066,10 +1154,27 @@ export function ChatModelConfig({
     optionsObjectRef.current = sanitized;
     setOptionsObject(sanitized);
     setOptionsDraft(stringifyOptions(sanitized));
-    setMobileView(hasVisualContent ? "visual" : "json");
+    setMobileView(hasVisualContent || userModelVisualFields.length > 0 ? "visual" : "json");
     setRestoredDefaultOptions(null);
     setDialogOpen(true);
-  }, [effectiveDefaultOptions, lockedOptionPaths, modelOptionPolicy, nativeToolDefinitions, optionControls, options, selectedProtocol]);
+    void (async () => {
+      try {
+        const token = await resolveAccessToken();
+        if (!token) {
+          return;
+        }
+        const [settings, modelOptions] = await Promise.all([
+          getUserSettings(token).catch((): UserSettingsMap => ({})),
+          listUserModelOptions(token).catch((): UserModelOptionsMap => ({})),
+        ]);
+        setUserSettings(settings);
+        setUserModelOptions(modelOptions);
+      } catch {
+        setUserSettings({});
+        setUserModelOptions({});
+      }
+    })();
+  }, [effectiveDefaultOptions, lockedOptionPaths, modelOptionPolicy, nativeToolDefinitions, optionControls, options, selectedProtocol, userModelVisualFields.length]);
 
   const replaceOptionsDraft = React.useCallback((next: ConversationOptions) => {
     const sanitized = applyLockedDefaultOptions(
@@ -1344,7 +1449,7 @@ export function ChatModelConfig({
                 </div>
               </div>
             ) : null}
-            {visibleOptions.map(({ key, path, value, active, editable, locked, forcedFilterStatus, label, description, kind: configuredKind, selectValues: configuredSelectValues, placeholder }) => {
+            {visibleOptions.map(({ key, path, value, active, editable, locked, forcedFilterStatus, label, description, kind: configuredKind, selectValues: configuredSelectValues, placeholder, min, max, step }) => {
               const editableValue = isEditableOptionValue(value) ? value : null;
               const selectValues = resolveSelectValues(key, configuredSelectValues);
               const kind = configuredKind === "select" && selectValues.length === 0
@@ -1436,11 +1541,18 @@ export function ChatModelConfig({
                     <Input
                       value={editableValue === null ? "" : String(editableValue)}
                       inputMode={kind === "number" ? "decimal" : undefined}
+                      min={kind === "number" ? min : undefined}
+                      max={kind === "number" ? max : undefined}
+                      step={kind === "number" ? step : undefined}
                       placeholder={placeholder ?? (kind === "number" ? "0.7" : key)}
                       onChange={(event) => {
                         const nextValue = event.target.value;
                         if (kind === "number") {
-                          updateOptionValue(path, parseVisualNumberInput(nextValue));
+                          const parsedValue = parseVisualNumberInput(nextValue);
+                          if (typeof parsedValue === "number" && ((min !== undefined && parsedValue < min) || (max !== undefined && parsedValue > max))) {
+                            return;
+                          }
+                          updateOptionValue(path, parsedValue);
                           return;
                         }
                         if (NUMBER_OPTION_KEYS.has(key)) {
@@ -1517,6 +1629,72 @@ export function ChatModelConfig({
               </div>
             </div>
             <DialogFooter className="shrink-0">
+              <div className="mr-auto flex items-center gap-2">
+                {userModelOptions[selectedModelName.trim()] ? (
+                  <span className="rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground">
+                    {tModelDefault("badgeSaved")}
+                  </span>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={modelOptionSaving || !selectedModelName.trim()}
+                  onClick={async () => {
+                    const name = selectedModelName.trim();
+                    if (!name) {
+                      return;
+                    }
+                    setModelOptionSaving(true);
+                    try {
+                      const token = await resolveAccessToken();
+                      if (!token) {
+                        return;
+                      }
+                      const payload = userModelOptionPayloadFromFields(userModelVisualFields);
+                      const updated = await upsertUserModelOption(token, name, payload);
+                      setUserModelOptions(updated);
+                      toast.success(tModelDefault("saveSuccess", { name }));
+                    } catch {
+                      toast.error(tModelDefault("saveFailed"));
+                    } finally {
+                      setModelOptionSaving(false);
+                    }
+                  }}
+                >
+                  {tModelDefault("saveAsDefault")}
+                </Button>
+                {userModelOptions[selectedModelName.trim()] ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={modelOptionSaving}
+                    onClick={async () => {
+                      const name = selectedModelName.trim();
+                      if (!name) {
+                        return;
+                      }
+                      setModelOptionSaving(true);
+                      try {
+                        const token = await resolveAccessToken();
+                        if (!token) {
+                          return;
+                        }
+                        const updated = await deleteUserModelOption(token, name);
+                        setUserModelOptions(updated);
+                        toast.success(tModelDefault("clearSuccess", { name }));
+                      } catch {
+                        toast.error(tModelDefault("clearFailed"));
+                      } finally {
+                        setModelOptionSaving(false);
+                      }
+                    }}
+                  >
+                    {tModelDefault("clearDefault")}
+                  </Button>
+                ) : null}
+              </div>
               <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>
                 {tCommon("cancel")}
               </Button>

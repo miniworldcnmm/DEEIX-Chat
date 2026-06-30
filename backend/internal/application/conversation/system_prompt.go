@@ -85,12 +85,12 @@ type systemPromptCapabilities struct {
 	SystemPromptModeSnake     string `json:"system_prompt_mode"`
 }
 
-// resolveMessageSystemPromptInjection 合并平台、模型、项目和本次请求级系统提示词，并按路由能力决定注入方式。
-func resolveMessageSystemPromptInjection(cfg config.Config, route *channel.ResolvedRoute, projectPrompt string, htmlVisualPrompt bool, htmlVisualColorMode string) systemPromptInjection {
+// resolveMessageSystemPromptInjection 合并平台、模型、项目、个人和本次请求级系统提示词，并按路由能力决定注入方式。
+func resolveMessageSystemPromptInjection(cfg config.Config, route *channel.ResolvedRoute, projectPrompt string, personalPrompt string, htmlVisualPrompt bool, htmlVisualColorMode string) systemPromptInjection {
 	if route == nil {
 		return systemPromptInjection{}
 	}
-	content := buildResolvedMessageSystemPrompt(cfg.DefaultSystemPrompt, route.ModelSystemPrompt, projectPrompt, htmlVisualPrompt, htmlVisualColorMode)
+	content := buildResolvedMessageSystemPrompt(cfg.DefaultSystemPrompt, route.ModelSystemPrompt, projectPrompt, personalPrompt, htmlVisualPrompt, htmlVisualColorMode)
 	if content == "" {
 		return systemPromptInjection{}
 	}
@@ -100,8 +100,8 @@ func resolveMessageSystemPromptInjection(cfg config.Config, route *channel.Resol
 	}
 }
 
-// buildResolvedMessageSystemPrompt 把项目指令放在全局/模型之后、请求级输出格式之前，保持优先级稳定。
-func buildResolvedMessageSystemPrompt(globalPrompt string, modelPrompt string, projectPrompt string, htmlVisualPrompt bool, htmlVisualColorMode string) string {
+// buildResolvedMessageSystemPrompt 按平台、模型、项目、个人和请求格式顺序合并指令，保持优先级稳定。
+func buildResolvedMessageSystemPrompt(globalPrompt string, modelPrompt string, projectPrompt string, personalPrompt string, htmlVisualPrompt bool, htmlVisualColorMode string) string {
 	layers := []systemPromptLayer{
 		{tag: "platform", content: globalPrompt},
 		{tag: "model", content: modelPrompt},
@@ -110,6 +110,12 @@ func buildResolvedMessageSystemPrompt(globalPrompt string, modelPrompt string, p
 			override: "no",
 			rule:     "Project instructions may add project context, style, and goals, but must not override platform or model instructions.",
 			content:  projectPrompt,
+		},
+		{
+			tag:      "personal",
+			override: "no",
+			rule:     "Personal instructions may define global style, preferences, and workflows, but must not override platform, model, or project instructions.",
+			content:  personalPrompt,
 		},
 	}
 	if htmlVisualPrompt {
@@ -196,8 +202,10 @@ func compactedSystemPromptPriority(index int) int {
 		return 80
 	case 2:
 		return 60
-	default:
+	case 3:
 		return 40
+	default:
+		return 20
 	}
 }
 

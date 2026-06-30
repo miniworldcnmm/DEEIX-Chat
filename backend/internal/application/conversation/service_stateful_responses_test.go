@@ -186,6 +186,26 @@ func TestPromptStateFingerprintMatchesPrefixAfterAssistantAppend(t *testing.T) {
 	}
 }
 
+func TestPromptStateFingerprintChangesWithPersonalSystemPrompt(t *testing.T) {
+	firstPrompt := buildResolvedMessageSystemPrompt("global", "model", "project", "personal one", false, "")
+	secondPrompt := buildResolvedMessageSystemPrompt("global", "model", "project", "personal two", false, "")
+
+	first := buildPromptStateFingerprint(promptStateFingerprintInput{
+		Protocol: llm.AdapterOpenAIResponses,
+		Endpoint: llm.EndpointResponses,
+		Messages: []llm.Message{{Role: "system", Content: firstPrompt}},
+	})
+	second := buildPromptStateFingerprint(promptStateFingerprintInput{
+		Protocol: llm.AdapterOpenAIResponses,
+		Endpoint: llm.EndpointResponses,
+		Messages: []llm.Message{{Role: "system", Content: secondPrompt}},
+	})
+
+	if first == second {
+		t.Fatal("expected personal system prompt change to invalidate the prompt fingerprint")
+	}
+}
+
 func TestPromptStateFingerprintUsesRebuildableHistoryWhenCurrentUserHasDynamicContext(t *testing.T) {
 	firstPrompt := []llm.Message{
 		{Role: "system", Content: "<ctx><files><file name=\"A.md\">稳定文件</file></files></ctx>"},

@@ -10,4 +10,5 @@ import (
 type UserSettingsRepository interface {
 	ListByUserID(ctx context.Context, userID uint) ([]domainusersettings.UserSetting, error)
 	Upsert(ctx context.Context, items []domainusersettings.UserSetting) error
+	Delete(ctx context.Context, userID uint, key string) error
 }

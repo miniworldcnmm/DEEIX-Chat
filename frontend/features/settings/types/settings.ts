@@ -24,6 +24,9 @@ export type ChatSettings = {
   inputHeight: ChatInputHeight;
   contentWidth: ChatContentWidth;
   fileMode: FileMode;
+  defaultThinkingEnabled: boolean;
+  defaultTemperature: number;
+  defaultReasoningEffort: string;
 };
 
 export type ModelVendorGroup = [vendor: string, items: PublicModelDTO[]];
