@@ -13,6 +13,10 @@ import type {
 import type { ChatSubmitBlockReason } from "@/features/chat/model/chat-task";
 import { resolveChatSubmitDecision } from "@/features/chat/model/chat-task";
 import {
+  cancelGenerationAndReload,
+  resolveAbortedSubmissionDisposition,
+} from "@/features/chat/model/generation-stop";
+import {
   resolveDefaultSubmissionParentMessage,
   resolvePersistedPublicID,
   toPendingAttachments,
@@ -124,6 +128,7 @@ type ActiveStream = {
   controller: AbortController;
   runID: string;
   accessToken: string | null;
+  requestDispatched: boolean;
 };
 
 type QueuedChatSubmission = {
@@ -498,6 +503,7 @@ export function useChatMessageSubmit({
       const createdAt = new Date().toISOString();
       let sentSuccessfully = false;
       let shouldKeepConversationLayout = false;
+      let requestDispatched = false;
       const streamAbortController = new AbortController();
       const clientRunID = createClientRunID();
       const sanitizedOptions = sanitizeConversationOptions(requestOptions);
@@ -514,6 +520,7 @@ export function useChatMessageSubmit({
         controller: streamAbortController,
         runID: clientRunID,
         accessToken: null,
+        requestDispatched: false,
       };
       if (resetComposer) {
         setDraft("");
@@ -561,6 +568,7 @@ export function useChatMessageSubmit({
             controller: streamAbortController,
             runID: clientRunID,
             accessToken: token,
+            requestDispatched: false,
           };
         }
         let metadataFallbackTitle = "";
@@ -740,6 +748,16 @@ export function useChatMessageSubmit({
             );
           },
         };
+        requestDispatched = true;
+        if (activeStreamRef.current?.controller === streamAbortController) {
+          activeStreamRef.current = {
+            controller: streamAbortController,
+            runID: clientRunID,
+            accessToken: token,
+            requestDispatched: true,
+          };
+        }
+
         let completed: SendMessageResult;
         if (submitTask === "chat") {
           const chatPayload: SendMessageRequest = {
@@ -877,20 +895,29 @@ export function useChatMessageSubmit({
         flushStreamTextNow();
         resetStreamBuffer();
         if (streamAbortController.signal.aborted) {
-          shouldKeepConversationLayout = true;
-          releaseAttachments(effectiveAttachments);
-          setPendingExchange((prev) =>
-            prev && prev.key === exchangeKey
-              ? {
-                  ...prev,
-                  assistantPending: false,
-                  assistantStreaming: false,
-                  assistantFileProc: false,
-                  assistantActivityLabel: undefined,
-                  assistantInlineAlert: undefined,
-                }
-              : prev,
-          );
+          const disposition = resolveAbortedSubmissionDisposition({ requestDispatched });
+          shouldKeepConversationLayout = disposition === "await_server_reconciliation";
+          if (disposition === "restore_draft") {
+            if (resetComposer) {
+              setDraft(content);
+              setAttachments(currentAttachments);
+            }
+            setPendingExchange((prev) => (prev && prev.key === exchangeKey ? null : prev));
+          } else {
+            releaseAttachments(effectiveAttachments);
+            setPendingExchange((prev) =>
+              prev && prev.key === exchangeKey
+                ? {
+                    ...prev,
+                    assistantPending: false,
+                    assistantStreaming: false,
+                    assistantFileProc: false,
+                    assistantActivityLabel: undefined,
+                    assistantInlineAlert: undefined,
+                  }
+                : prev,
+            );
+          }
           return false;
         }
         const errorMessage = resolveErrorMessage(error, t("retryLater"));
@@ -1012,11 +1039,18 @@ export function useChatMessageSubmit({
     if (!active) {
       return;
     }
-    if (active.accessToken) {
-      void cancelMessageGeneration(active.accessToken, active.runID).catch(() => undefined);
-    }
     active.controller.abort();
-  }, []);
+    if (!active.requestDispatched) {
+      return;
+    }
+    void cancelGenerationAndReload({
+      accessToken: active.accessToken,
+      runID: active.runID,
+      resolveAccessToken,
+      cancelGeneration: cancelMessageGeneration,
+      reload,
+    });
+  }, [reload]);
 
   const onDeleteQueuedMessage = React.useCallback((id: string) => {
     const target = queuedSubmissionsRef.current.find((item) => item.id === id);
