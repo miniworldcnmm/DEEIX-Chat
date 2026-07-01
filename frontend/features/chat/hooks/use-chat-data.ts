@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { resolveAccessToken } from "@/shared/auth/resolve-access-token";
 import { cancelMessageGeneration, listMessagesPage, resumeMessageGenerationStream } from "@/shared/api/conversation";
 import { buildMediaImagePreviewMarkdown } from "@/features/chat/model/media-image-preview";
+import { cancelGenerationAndReload } from "@/features/chat/model/generation-stop";
 import type { MessageDTO } from "@/shared/api/conversation.types";
 
 const MESSAGE_PAGE_SIZE = 100;
@@ -277,14 +278,13 @@ export function useChatData(
     active.controller.abort();
     setResumingRunID("");
 
-    const token = active.accessToken ?? (await resolveAccessToken());
-    if (!token) {
-      return false;
-    }
-
-    const result = await cancelMessageGeneration(token, active.runID).catch(() => null);
-    reload();
-    return Boolean(result?.canceled);
+    return cancelGenerationAndReload({
+      accessToken: active.accessToken,
+      runID: active.runID,
+      resolveAccessToken,
+      cancelGeneration: cancelMessageGeneration,
+      reload,
+    });
   }, [reload]);
 
   const pendingAssistant = React.useMemo(() => {

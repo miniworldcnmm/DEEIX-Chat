@@ -41,6 +41,28 @@ export function resolvePersistedPublicID(value: string | null | undefined): stri
   return normalized;
 }
 
+export function canRetryPersistedAssistantMessage({
+  publicID,
+  busy,
+  isPending,
+  isStreaming,
+  readOnly,
+}: {
+  publicID: string | null | undefined;
+  busy: boolean;
+  isPending: boolean;
+  isStreaming: boolean;
+  readOnly: boolean;
+}): boolean {
+  return Boolean(
+    resolvePersistedPublicID(publicID) &&
+      !busy &&
+      !isPending &&
+      !isStreaming &&
+      !readOnly,
+  );
+}
+
 function isSuccessfulContextMessage(message: ChatAreaMessage): boolean {
   const status = message.status?.trim().toLowerCase() || "success";
   return (

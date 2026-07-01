@@ -34,7 +34,10 @@ import { Button } from "@/components/ui/button";
 import { resolveAccessToken } from "@/shared/auth/resolve-access-token";
 import { upsertUserMemory } from "@/shared/api/memory";
 import { useLocalizedErrorMessage } from "@/i18n/use-localized-error";
-import { resolvePersistedPublicID } from "@/features/chat/model/message-submit";
+import {
+  canRetryPersistedAssistantMessage,
+  resolvePersistedPublicID,
+} from "@/features/chat/model/message-submit";
 import {
   billingRateMultiplierNote,
   cacheWriteBillingLabel,
@@ -986,7 +989,13 @@ export function AssistantMessageMeta({
     isLive ? item.createdAt : item.updatedAt || item.createdAt,
     (key, values) => timeT(key, values),
   );
-  const canRetry = !readOnly && !busy && !isLive;
+  const canRetry = canRetryPersistedAssistantMessage({
+    publicID: item.publicID,
+    busy,
+    isPending: Boolean(item.isPending),
+    isStreaming: Boolean(item.isStreaming),
+    readOnly,
+  });
   const canEdit = Boolean(canRetry && onEdit && resolvePersistedPublicID(item.publicID));
   const canContinue = Boolean(canRetry && resolvePersistedPublicID(item.publicID) && item.status === "interrupted");
   const canShowBranchNavigator = Boolean(showBranchNavigator && item.branchNavigator && !busy && !isLive);
