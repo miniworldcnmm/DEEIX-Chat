@@ -37,6 +37,7 @@ type executeAssistantToolCallsInput struct {
 	ToolNameMap    map[string]string
 	MCPConfigs     map[string]mcp.CallConfig
 	ToolSchemas    map[string]json.RawMessage
+	MemoryTools    map[string]struct{}
 	Ledger         *toolExecutionLedger
 }
 
@@ -102,7 +103,8 @@ func (s *Service) executeAssistantToolCalls(ctx context.Context, input executeAs
 		}
 
 		mcpConfig := resolveMCPConfig(modelToolName, input.MCPConfigs)
-		if mcpConfig == nil {
+		_, memoryTool := input.MemoryTools[modelToolName]
+		if mcpConfig == nil && !memoryTool {
 			row.Status = "error"
 			row.ErrorJSON = toolNotEnabledForRunMessage(modelToolName)
 			slots[i] = toolExecutionSlot{
@@ -152,6 +154,7 @@ func (s *Service) executeAssistantToolCalls(ctx context.Context, input executeAs
 			ToolName:       row.ToolName,
 			ArgumentsJSON:  row.InputJSON,
 			MCPConfig:      mcpConfig,
+			MemoryTool:     memoryTool,
 		})
 		row.LatencyMS = time.Since(toolStartedAt).Milliseconds()
 		if row.LatencyMS < 0 {

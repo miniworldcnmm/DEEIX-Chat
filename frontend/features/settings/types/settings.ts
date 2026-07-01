@@ -27,6 +27,7 @@ export type ChatSettings = {
   defaultThinkingEnabled: boolean;
   defaultTemperature: number;
   defaultReasoningEffort: string;
+  memoryEnabled: boolean;
 };
 
 export type ModelVendorGroup = [vendor: string, items: PublicModelDTO[]];

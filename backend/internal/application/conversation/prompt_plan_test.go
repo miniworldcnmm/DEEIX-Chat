@@ -181,6 +181,24 @@ func TestBuildPromptPlanKeepsRawMessagesWhenNoContext(t *testing.T) {
 	}
 }
 
+func TestBuildPromptPlanAddsMemoryGuidanceAfterMainSystem(t *testing.T) {
+	base := []llm.Message{
+		{Role: "system", Content: "MAIN SYSTEM"},
+		{Role: "user", Content: "记住我使用中文"},
+	}
+	plan := buildPromptPlan(t.Context(), promptPlanInput{
+		BaseMessages: base,
+		ToolRuntime:  withMemoryTools(selectedToolRuntime{}, true),
+		Config:       config.Config{},
+	})
+	if len(plan.Messages) != 3 {
+		t.Fatalf("expected memory guidance message, got %#v", plan.Messages)
+	}
+	if plan.Messages[0].Content != "MAIN SYSTEM" || !strings.Contains(plan.Messages[1].Content, "# 记忆管理规则") {
+		t.Fatalf("expected memory guidance below main system, got %#v", plan.Messages)
+	}
+}
+
 func promptTraceHasBlock(trace PromptTrace, kind PromptBlockKind) bool {
 	return promptTraceBlock(trace, kind) != nil
 }

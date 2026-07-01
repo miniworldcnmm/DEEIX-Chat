@@ -3,6 +3,7 @@ import type { ChatInputHeight, ChatSettings, FileMode, ModelVendorGroup, SendSho
 import type { UserSettingsMap } from "@/shared/api/user-settings";
 import type { PublicModelDTO } from "@/shared/api/model.types";
 import { platformSendShortcut } from "@/shared/lib/platform-shortcuts";
+import { parseMemoryEnabled } from "@/features/settings/model/memory-settings";
 
 const FILE_MODES: FileMode[] = ["auto", "full_context", "rag"];
 const INPUT_HEIGHTS: ChatInputHeight[] = ["compact", "standard", "loose"];
@@ -28,6 +29,7 @@ export const DEFAULT_CHAT_SETTINGS: ChatSettings = {
   defaultThinkingEnabled: true,
   defaultTemperature: 1,
   defaultReasoningEffort: "",
+  memoryEnabled: false,
 };
 
 export function parseChatSettings(map: UserSettingsMap): ChatSettings {
@@ -56,6 +58,7 @@ export function parseChatSettings(map: UserSettingsMap): ChatSettings {
     defaultThinkingEnabled: map["chat.default_thinking_enabled"] !== "false",
     defaultTemperature: parseDefaultTemperature(map["chat.default_temperature"]),
     defaultReasoningEffort: parseDefaultReasoningEffort(map["chat.default_reasoning_effort"]),
+    memoryEnabled: parseMemoryEnabled(map),
   };
 }
 

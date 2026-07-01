@@ -10250,6 +10250,41 @@ paths:
       summary: 删除用户个性化记忆
       tags:
       - memory
+  /memories/{memory_id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除当前用户的指定数字 ID 长期记忆
+      parameters:
+      - description: 记忆 ID
+        in: path
+        name: memory_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_transport_http_memory.UpsertUserMemoryResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_transport_http_memory.ErrorDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_transport_http_memory.ErrorDoc'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_transport_http_memory.ErrorDoc'
+      security:
+      - BearerAuth: []
+      summary: 按 ID 删除用户记忆
+      tags:
+      - memory
   /messages/{id}:
     patch:
       consumes:

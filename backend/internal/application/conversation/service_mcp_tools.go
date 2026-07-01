@@ -16,14 +16,20 @@ import (
 )
 
 type selectedToolRuntime struct {
-	definitions []llm.ToolDefinition
-	nameMap     map[string]string
-	mcpConfigs  map[string]mcp.CallConfig
-	schemas     map[string]json.RawMessage
+	definitions  []llm.ToolDefinition
+	nameMap      map[string]string
+	mcpConfigs   map[string]mcp.CallConfig
+	schemas      map[string]json.RawMessage
+	memoryTools  map[string]struct{}
+	mcpToolCount int
 }
 
 func injectMCPToolGuidance(messages []llm.Message, runtime selectedToolRuntime, customPrompt string) []llm.Message {
-	if len(runtime.definitions) == 0 {
+	mcpToolCount := runtime.mcpToolCount
+	if mcpToolCount == 0 && len(runtime.memoryTools) == 0 {
+		mcpToolCount = len(runtime.definitions)
+	}
+	if mcpToolCount == 0 {
 		return messages
 	}
 
@@ -184,6 +190,7 @@ func (s *Service) resolveSelectedToolRuntime(ctx context.Context, toolIDs []uint
 			TimeoutMS: cfg.MCPToolTimeoutSeconds * 1000,
 			Headers:   headers,
 		}
+		result.mcpToolCount++
 	}
 	return result
 }

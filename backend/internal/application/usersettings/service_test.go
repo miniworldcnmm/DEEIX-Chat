@@ -162,6 +162,21 @@ func TestDefaultThinkingEnabledSettingIsAllowed(t *testing.T) {
 	}
 }
 
+func TestMemoryEnabledSettingDefaultsToFalse(t *testing.T) {
+	t.Parallel()
+	if got := allowedKeys["chat.memory_enabled"]; got != "false" {
+		t.Fatalf("expected chat.memory_enabled default false, got %q", got)
+	}
+	for _, value := range []string{"true", "false"} {
+		if err := validateValue("chat.memory_enabled", value); err != nil {
+			t.Fatalf("expected %s accepted, got %v", value, err)
+		}
+	}
+	if err := validateValue("chat.memory_enabled", "yes"); err == nil {
+		t.Fatal("expected invalid value rejected")
+	}
+}
+
 func TestValidateModelOptionPayloadAcceptsKnownFields(t *testing.T) {
 	t.Parallel()
 	value := `{"thinking_enabled":true,"temperature":1.0,"reasoning_effort":"high"}`

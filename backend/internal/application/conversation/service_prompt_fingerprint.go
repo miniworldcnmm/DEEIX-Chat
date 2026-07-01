@@ -82,10 +82,10 @@ func buildPromptStateFingerprint(input promptStateFingerprintInput) string {
 }
 
 // buildPromptContextStateSignature 显式记录稳定上下文来源版本，补足纯文本指纹无法表达的状态边界。
-func buildPromptContextStateSignature(stableAttachments []AttachmentInput, preferenceMemories []domainmemory.UserMemory) string {
+func buildPromptContextStateSignature(stableAttachments []AttachmentInput, memories []domainmemory.UserMemory) string {
 	payload := map[string]interface{}{
 		"files":    promptContextFileState(stableAttachments),
-		"memories": promptContextMemoryState(preferenceMemories),
+		"memories": promptContextMemoryState(memories),
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {

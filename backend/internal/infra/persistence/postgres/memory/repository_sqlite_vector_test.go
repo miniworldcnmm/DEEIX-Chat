@@ -7,6 +7,7 @@ import (
 	domainmemory "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/memory"
 	model "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/models"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/infra/persistence/sqlitevec"
+	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/repository"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -72,6 +73,36 @@ func TestSQLiteVectorStoreSearchesAndDeletesUserMemories(t *testing.T) {
 	}
 	if len(results) != 1 || results[0].MemoryKey != "favorite_color" {
 		t.Fatalf("expected deleted memory vector to be removed, got %#v", results)
+	}
+}
+
+func TestSQLiteMemoryRepositoryMutatesByOwnedID(t *testing.T) {
+	db := openMemorySQLiteVectorTestDB(t)
+	repo := NewRepo(db)
+	ctx := context.Background()
+	item := &domainmemory.UserMemory{UserID: 21, MemoryKey: "memory:id-test", Value: "old", Scope: "memory", UpdatedBy: "assistant"}
+	if err := repo.CreateUserMemory(ctx, item); err != nil {
+		t.Fatalf("CreateUserMemory() error = %v", err)
+	}
+	if item.ID == 0 {
+		t.Fatal("expected generated memory ID")
+	}
+	count, err := repo.CountUserMemories(ctx, 21)
+	if err != nil || count != 1 {
+		t.Fatalf("CountUserMemories() count=%d err=%v", count, err)
+	}
+	updated, err := repo.UpdateUserMemoryByID(ctx, 21, item.ID, "new", "memory", "assistant")
+	if err != nil || updated.Value != "new" {
+		t.Fatalf("UpdateUserMemoryByID() memory=%#v err=%v", updated, err)
+	}
+	if _, err := repo.UpdateUserMemoryByID(ctx, 22, item.ID, "stolen", "memory", "assistant"); err != repository.ErrNotFound {
+		t.Fatalf("expected ownership-safe update not found, got %v", err)
+	}
+	if err := repo.DeleteUserMemoryByID(ctx, 22, item.ID); err != repository.ErrNotFound {
+		t.Fatalf("expected ownership-safe delete not found, got %v", err)
+	}
+	if err := repo.DeleteUserMemoryByID(ctx, 21, item.ID); err != nil {
+		t.Fatalf("DeleteUserMemoryByID() error = %v", err)
 	}
 }
 

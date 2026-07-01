@@ -53,6 +53,88 @@ func (r *Repo) sqliteDialect() bool {
 	return r != nil && r.db != nil && r.db.Dialector != nil && r.db.Dialector.Name() == "sqlite"
 }
 
+// CreateUserMemory 新增一条用户长期记忆，并回填数字 ID 与时间戳。
+func (r *Repo) CreateUserMemory(ctx context.Context, item *domainmemory.UserMemory) error {
+	if item == nil {
+		return nil
+	}
+	record := model.UserMemory{
+		UserID:    item.UserID,
+		MemoryKey: item.MemoryKey,
+		Value:     item.Value,
+		Scope:     item.Scope,
+		UpdatedBy: item.UpdatedBy,
+	}
+	if err := r.db.WithContext(ctx).Create(&record).Error; err != nil {
+		return translateError(err)
+	}
+	assignDomainMemory(item, record)
+	return nil
+}
+
+// CountUserMemories 返回用户当前记忆数量。
+func (r *Repo) CountUserMemories(ctx context.Context, userID uint) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.UserMemory{}).Where("user_id = ?", userID).Count(&count).Error
+	return count, translateError(err)
+}
+
+// UpdateUserMemoryByID 按 ID 和用户更新内容，并清除旧向量。
+func (r *Repo) UpdateUserMemoryByID(ctx context.Context, userID uint, memoryID uint, value string, scope string, updatedBy string) (*domainmemory.UserMemory, error) {
+	var result domainmemory.UserMemory
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var record model.UserMemory
+		if err := tx.Where("id = ? AND user_id = ?", memoryID, userID).First(&record).Error; err != nil {
+			return translateError(err)
+		}
+		record.Value = value
+		record.Scope = scope
+		record.UpdatedBy = updatedBy
+		if err := tx.Save(&record).Error; err != nil {
+			return translateError(err)
+		}
+		if err := r.clearUserMemoryEmbedding(ctx, tx, record.ID); err != nil {
+			return err
+		}
+		assignDomainMemory(&result, record)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// DeleteUserMemoryByID 按 ID 和用户物理删除记忆与 SQLite 向量。
+func (r *Repo) DeleteUserMemoryByID(ctx context.Context, userID uint, memoryID uint) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var record model.UserMemory
+		if err := tx.Where("id = ? AND user_id = ?", memoryID, userID).First(&record).Error; err != nil {
+			return translateError(err)
+		}
+		if r.sqliteDialect() {
+			if err := tx.Exec(fmt.Sprintf(`DELETE FROM %s WHERE memory_id = ?`, sqlitevec.UserMemoryVectorTable), record.ID).Error; err != nil {
+				return translateError(err)
+			}
+		}
+		return translateError(tx.Delete(&record).Error)
+	})
+}
+
+func assignDomainMemory(dst *domainmemory.UserMemory, src model.UserMemory) {
+	if dst == nil {
+		return
+	}
+	dst.ID = src.ID
+	dst.UserID = src.UserID
+	dst.MemoryKey = src.MemoryKey
+	dst.Value = src.Value
+	dst.Scope = src.Scope
+	dst.UpdatedBy = src.UpdatedBy
+	dst.CreatedAt = src.CreatedAt
+	dst.UpdatedAt = src.UpdatedAt
+}
+
 // UpsertUserMemory 更新或插入用户长期记忆。
 func (r *Repo) UpsertUserMemory(ctx context.Context, item *domainmemory.UserMemory) error {
 	if item == nil {

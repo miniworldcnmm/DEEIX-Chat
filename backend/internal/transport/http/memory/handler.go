@@ -2,8 +2,10 @@ package memory
 
 import (
 	"net/http"
+	"strconv"
 
 	appmemory "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/memory"
+	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/repository"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/shared/response"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/transport/http/middleware"
 	"github.com/gin-gonic/gin"
@@ -12,6 +14,46 @@ import (
 // Handler 封装记忆 HTTP 处理。
 type Handler struct {
 	service *appmemory.Service
+}
+
+// DeleteUserMemoryByID godoc
+// @Summary 按 ID 删除用户记忆
+// @Description 删除当前用户的指定数字 ID 长期记忆
+// @Tags memory
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param memory_id path int true "记忆 ID"
+// @Success 200 {object} UpsertUserMemoryResponseDoc
+// @Failure 400 {object} ErrorDoc
+// @Failure 404 {object} ErrorDoc
+// @Failure 500 {object} ErrorDoc
+// @Router /memories/{memory_id} [delete]
+func (h *Handler) DeleteUserMemoryByID(c *gin.Context) {
+	userID := middleware.MustUserID(c)
+	memoryID, err := strconv.ParseUint(c.Param("memory_id"), 10, 64)
+	if err != nil || memoryID == 0 {
+		response.Error(c, http.StatusBadRequest, "memory_id must be a positive integer")
+		return
+	}
+	if err := h.service.DeleteUserMemoryByID(c.Request.Context(), userID, uint(memoryID)); err != nil {
+		if err == repository.ErrNotFound {
+			response.Error(c, http.StatusNotFound, "memory not found")
+			return
+		}
+		response.Error(c, http.StatusInternalServerError, "delete user memory failed")
+		return
+	}
+	h.service.RecordAudit(c.Request.Context(), appmemory.AuditInput{
+		UserID:    userID,
+		RequestID: middleware.MustRequestID(c),
+		Action:    "delete_user_memory",
+		MemoryKey: strconv.FormatUint(memoryID, 10),
+		ClientIP:  c.ClientIP(),
+		UserAgent: c.Request.UserAgent(),
+		Detail:    map[string]string{"identifier": "id"},
+	})
+	response.Success(c, UpsertMemoryResponse{Saved: true})
 }
 
 // NewHandler 创建处理器。

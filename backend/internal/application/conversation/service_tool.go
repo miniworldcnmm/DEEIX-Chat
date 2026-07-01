@@ -18,12 +18,16 @@ type ExecuteToolInput struct {
 	ToolName       string
 	ArgumentsJSON  string
 	MCPConfig      *mcp.CallConfig
+	MemoryTool     bool
 }
 
 func (s *Service) executeToolCall(ctx context.Context, input ExecuteToolInput) (string, error) {
 	toolName := strings.TrimSpace(input.ToolName)
 	if toolName == "" {
 		return "", fmt.Errorf("tool name is required")
+	}
+	if input.MemoryTool {
+		return s.executeMemoryTool(ctx, input.UserID, input.RequestID, toolName, input.ArgumentsJSON)
 	}
 	if input.MCPConfig == nil {
 		return "", fmt.Errorf("tool %s is not enabled for this run", toolName)

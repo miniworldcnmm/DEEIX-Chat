@@ -31,3 +31,13 @@ export async function deleteUserMemory(
     accessToken,
   });
 }
+
+export async function deleteUserMemoryByID(
+  accessToken: string,
+  memoryID: number,
+): Promise<{ saved: boolean }> {
+  return authedRequest<{ saved: boolean }>(`/api/v1/memories/${pathParam(String(memoryID))}`, {
+    method: "DELETE",
+    accessToken,
+  });
+}
