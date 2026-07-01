@@ -49,10 +49,11 @@ var allowedKeys = map[string]string{
 	"chat.reuse_model_options":                  "true",
 	"chat.input_height":                         "standard",
 	"chat.content_width":                        "compact",
-	"chat.default_mcp_tool_ids":                  "[]",
+	"chat.default_mcp_tool_ids":                 "[]",
 	"chat.default_thinking_enabled":             "true",
 	"chat.default_temperature":                  "1",
 	"chat.default_reasoning_effort":             "",
+	"chat.memory_enabled":                       "false",
 }
 
 // boolKeys 取值只能是 "true" / "false"。
@@ -69,6 +70,7 @@ var boolKeys = map[string]bool{
 	"chat.preserve_conversation_drafts":         true,
 	"chat.reuse_model_options":                  true,
 	"chat.default_thinking_enabled":             true,
+	"chat.memory_enabled":                       true,
 }
 
 // enumKeys 枚举 key 的合法值集合。
@@ -82,7 +84,7 @@ var enumKeys = map[string]map[string]bool{
 const (
 	defaultTemperatureMin = 0.0
 	defaultTemperatureMax = 2.0
-	platformModelNameMax   = 128
+	platformModelNameMax  = 128
 )
 
 // validateValue 校验 key 对应 value 的合法性。

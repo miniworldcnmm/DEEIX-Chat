@@ -8444,6 +8444,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/memories/{memory_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除当前用户的指定数字 ID 长期记忆",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "memory"
+                ],
+                "summary": "按 ID 删除用户记忆",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "记忆 ID",
+                        "name": "memory_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_memory.UpsertUserMemoryResponseDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_memory.ErrorDoc"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_memory.ErrorDoc"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_transport_http_memory.ErrorDoc"
+                        }
+                    }
+                }
+            }
+        },
         "/messages/{id}": {
             "patch": {
                 "security": [

@@ -7,4 +7,5 @@ func (m *Module) RegisterRoutes(authRequired *gin.RouterGroup) {
 	authRequired.GET("/memories/profile", m.Handler.ListUserMemories)
 	authRequired.PUT("/memories/profile", m.Handler.UpsertUserMemory)
 	authRequired.DELETE("/memories/profile/:memory_key", m.Handler.DeleteUserMemory)
+	authRequired.DELETE("/memories/:memory_id", m.Handler.DeleteUserMemoryByID)
 }

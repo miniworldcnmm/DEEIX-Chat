@@ -2,11 +2,24 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
 	domainmemory "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/domain/memory"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/repository"
+	"github.com/google/uuid"
+)
+
+const (
+	MaxUserMemories       = 200
+	MaxMemoryContentRunes = 150
+)
+
+var (
+	ErrMemoryContentRequired = errors.New("memory content is required")
+	ErrMemoryContentTooLong  = errors.New("memory content must be at most 150 characters")
+	ErrMemoryLimitReached    = errors.New("memory limit reached")
 )
 
 type embeddingProvider interface {
@@ -91,6 +104,79 @@ func (s *Service) UpsertUserMemory(ctx context.Context, userID uint, key string,
 	}
 	s.embedUserMemoryAsync(userID, item.MemoryKey, item.Value)
 	return nil
+}
+
+// AddUserMemory 新增一条由模型维护的普通长期记忆。
+func (s *Service) AddUserMemory(ctx context.Context, userID uint, content string, updatedBy string) (*domainmemory.UserMemory, error) {
+	value, err := validateMemoryContent(content)
+	if err != nil {
+		return nil, err
+	}
+	count, err := s.repo.CountUserMemories(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if count >= MaxUserMemories {
+		return nil, ErrMemoryLimitReached
+	}
+	item := &domainmemory.UserMemory{
+		UserID:    userID,
+		MemoryKey: "memory:" + uuid.NewString(),
+		Value:     value,
+		Scope:     "memory",
+		UpdatedBy: strings.TrimSpace(updatedBy),
+	}
+	if err := s.repo.CreateUserMemory(ctx, item); err != nil {
+		return nil, err
+	}
+	s.afterUserMemoryWrite(userID, item)
+	return item, nil
+}
+
+// UpdateUserMemory 按数字 ID 更新当前用户的一条长期记忆。
+func (s *Service) UpdateUserMemory(ctx context.Context, userID uint, memoryID uint, content string, updatedBy string) (*domainmemory.UserMemory, error) {
+	value, err := validateMemoryContent(content)
+	if err != nil {
+		return nil, err
+	}
+	item, err := s.repo.UpdateUserMemoryByID(ctx, userID, memoryID, value, "memory", strings.TrimSpace(updatedBy))
+	if err != nil {
+		return nil, err
+	}
+	s.afterUserMemoryWrite(userID, item)
+	return item, nil
+}
+
+// DeleteUserMemoryByID 按数字 ID 删除当前用户的一条长期记忆。
+func (s *Service) DeleteUserMemoryByID(ctx context.Context, userID uint, memoryID uint) error {
+	if err := s.repo.DeleteUserMemoryByID(ctx, userID, memoryID); err != nil {
+		return err
+	}
+	if s.cacheInvalidator != nil {
+		s.cacheInvalidator(userID)
+	}
+	return nil
+}
+
+func validateMemoryContent(content string) (string, error) {
+	value := strings.TrimSpace(content)
+	if value == "" {
+		return "", ErrMemoryContentRequired
+	}
+	if len([]rune(value)) > MaxMemoryContentRunes {
+		return "", ErrMemoryContentTooLong
+	}
+	return value, nil
+}
+
+func (s *Service) afterUserMemoryWrite(userID uint, item *domainmemory.UserMemory) {
+	if item == nil {
+		return
+	}
+	if s.cacheInvalidator != nil {
+		s.cacheInvalidator(userID)
+	}
+	s.embedUserMemoryAsync(userID, item.MemoryKey, item.Value)
 }
 
 // DeleteUserMemory 删除用户长期记忆，并失效会话缓存。

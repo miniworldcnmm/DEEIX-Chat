@@ -149,13 +149,11 @@ func buildPromptPlan(ctx context.Context, input promptPlanInput) PromptPlan {
 	}
 
 	before = len(messages)
+	beforeTokens := estimatePromptTokens(messages)
+	messages = injectMemoryToolGuidance(messages, len(input.ToolRuntime.memoryTools) > 0)
 	messages = injectMCPToolGuidance(messages, input.ToolRuntime, input.Config.MCPToolPrompt)
 	if len(messages) > before {
-		inserted := findToolGuidanceMessage(messages)
-		tokenEstimate := int64(0)
-		if inserted >= 0 {
-			tokenEstimate = estimateMessageTokens(messages[inserted])
-		}
+		tokenEstimate := estimatePromptTokens(messages) - beforeTokens
 		trace.addBlock(PromptBlockTrace{
 			Kind:          PromptBlockToolGuidance,
 			Title:         "工具使用规则",

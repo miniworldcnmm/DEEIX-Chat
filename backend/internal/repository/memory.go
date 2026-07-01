@@ -8,6 +8,10 @@ import (
 
 // MemoryRepository 定义记忆流程依赖的持久化能力。
 type MemoryRepository interface {
+	CreateUserMemory(ctx context.Context, item *domainmemory.UserMemory) error
+	UpdateUserMemoryByID(ctx context.Context, userID uint, memoryID uint, value string, scope string, updatedBy string) (*domainmemory.UserMemory, error)
+	DeleteUserMemoryByID(ctx context.Context, userID uint, memoryID uint) error
+	CountUserMemories(ctx context.Context, userID uint) (int64, error)
 	UpsertUserMemory(ctx context.Context, item *domainmemory.UserMemory) error
 	DeleteUserMemory(ctx context.Context, userID uint, memoryKey string) error
 	ListUserMemories(ctx context.Context, userID uint) ([]domainmemory.UserMemory, error)

@@ -399,6 +399,10 @@ func (s *Service) sendMessageInternal(
 	contextMessages := buildBranchMessagePath(branchState, userMessage)
 	cfg := s.cfg.Snapshot()
 	compactPolicy := s.resolveContextCompactionPolicy(ctx, cfg, input.UserID)
+	memoryEnabled := false
+	if value, settingErr := s.getUserSettingCached(ctx, input.UserID, "chat.memory_enabled"); settingErr == nil {
+		memoryEnabled = strings.EqualFold(strings.TrimSpace(value), "true")
+	}
 
 	// 并行预取：Snapshot + UserMemory 提前加载，隐藏 DB 延迟。
 	type prefetchData struct {
@@ -411,7 +415,7 @@ func (s *Service) sendMessageInternal(
 		if compactPolicy.EffectiveEnabled() {
 			r.snapshot, _ = s.getCachedSnapshot(ctx, input.ConversationID)
 		}
-		if s.memoryRecorder != nil {
+		if memoryEnabled && s.memoryRecorder != nil {
 			r.userMemories, _ = s.getCachedUserMemories(ctx, input.UserID)
 		}
 		prefetchCh <- r
@@ -480,7 +484,6 @@ func (s *Service) sendMessageInternal(
 		}
 	}
 	userCtx := userContextInput{}
-	var prefixMemories []domainmemory.UserMemory
 	if promptScope.Snapshot != nil {
 		if snapshotSummary := strings.TrimSpace(promptScope.Snapshot.SummaryText); snapshotSummary != "" {
 			userCtx.Snapshot = &snapshotContext{
@@ -491,18 +494,8 @@ func (s *Service) sendMessageInternal(
 			}
 		}
 	}
-	if len(prefetch.userMemories) > 0 {
-		prefMems := filterMemoriesByScope(prefetch.userMemories, "preference")
-		if len(prefMems) > 0 {
-			prefixMemories = prefMems
-			if prefContent := buildPreferencePrompt(prefMems, 400); prefContent != "" {
-				assembler.Add(ContextSlot{Kind: SlotPreference, Content: prefContent})
-			}
-		}
-		otherMems := filterMemoriesByScope(prefetch.userMemories, "profile", "custom")
-		if len(otherMems) > 0 {
-			userCtx.Memory = s.selectRelevantUserMemories(ctx, input.UserID, input.Content, otherMems, 5)
-		}
+	if memoryEnabled && len(prefetch.userMemories) > 0 {
+		userCtx.Memory = prefetch.userMemories
 	}
 	llmMessages, _ := assembler.Assemble(historyMsgs)
 	if traceRecorder != nil {
@@ -673,7 +666,7 @@ func (s *Service) sendMessageInternal(
 			messageTraceStatusStreaming,
 		)
 	}
-	toolRuntime := s.resolveSelectedToolRuntime(ctx, input.SelectedToolIDs)
+	toolRuntime := withMemoryTools(s.resolveSelectedToolRuntime(ctx, input.SelectedToolIDs), memoryEnabled)
 	promptPlan := buildPromptPlan(ctx, promptPlanInput{
 		BaseMessages:      llmMessages,
 		StableAttachments: stableFullContextAttachments,
@@ -720,7 +713,7 @@ func (s *Service) sendMessageInternal(
 	fullLLMMessages := llmMessages
 	applyOpenAIResponsesInstructions(route, routeConfig.Endpoint, &generateInput)
 	statefulContextConfig := buildPromptContextConfigSignature(cfg)
-	statefulContextState := buildPromptContextStateSignature(stableFullContextAttachments, prefixMemories)
+	statefulContextState := buildPromptContextStateSignature(stableFullContextAttachments, userCtx.Memory)
 	statefulPrefixFingerprint := buildPromptStateFingerprint(promptStateFingerprintInput{
 		Protocol:          route.Protocol,
 		Endpoint:          routeConfig.Endpoint,
@@ -1060,6 +1053,7 @@ func (s *Service) sendMessageInternal(
 			ToolNameMap:    toolRuntime.nameMap,
 			MCPConfigs:     toolRuntime.mcpConfigs,
 			ToolSchemas:    toolRuntime.schemas,
+			MemoryTools:    toolRuntime.memoryTools,
 			Ledger:         toolLedger,
 		})
 		toolSpan.SetAttributes(

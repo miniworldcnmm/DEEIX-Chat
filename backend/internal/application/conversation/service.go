@@ -10,6 +10,7 @@ import (
 	appcompact "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/compact"
 	appembedding "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/embedding"
 	"github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/extraction"
+	appmemory "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/memory"
 	appstorage "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/objectstorage"
 	appprocessing "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/processing"
 	apprag "github.com/DEEIX-AI/DEEIX-Chat/backend/internal/application/rag"
@@ -43,6 +44,10 @@ type defaultRouteResolver interface {
 }
 
 type memoryRecorder interface {
+	RecordAudit(ctx context.Context, input appmemory.AuditInput)
+	AddUserMemory(ctx context.Context, userID uint, content string, updatedBy string) (*domainmemory.UserMemory, error)
+	UpdateUserMemory(ctx context.Context, userID uint, memoryID uint, content string, updatedBy string) (*domainmemory.UserMemory, error)
+	DeleteUserMemoryByID(ctx context.Context, userID uint, memoryID uint) error
 	UpsertUserMemory(ctx context.Context, userID uint, memoryKey string, value string, scope string, updatedBy string) error
 	ListUserMemories(ctx context.Context, userID uint) ([]domainmemory.UserMemory, error)
 	SearchUserMemoriesByEmbedding(ctx context.Context, userID uint, queryEmbedding []float32, topK int, minSimilarity float64) ([]domainmemory.UserMemory, error)

@@ -13,7 +13,6 @@ type ContextSlotKind string
 
 const (
 	SlotSystemPrompt   ContextSlotKind = "system_prompt"
-	SlotPreference     ContextSlotKind = "preference"
 	SlotMemory         ContextSlotKind = "memory"
 	SlotSnapshot       ContextSlotKind = "snapshot"
 	SlotRAG            ContextSlotKind = "rag"
@@ -26,7 +25,6 @@ const (
 var slotPriority = map[ContextSlotKind]int{
 	SlotInput:          100,
 	SlotSystemPrompt:   95,
-	SlotPreference:     90,
 	SlotSnapshot:       80,
 	SlotRAG:            70,
 	SlotSemanticRecall: 60,
